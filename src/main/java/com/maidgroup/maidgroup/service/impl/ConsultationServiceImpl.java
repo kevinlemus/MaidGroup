@@ -6,6 +6,9 @@ import com.maidgroup.maidgroup.model.Consultation;
 import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.service.ConsultationService;
+import com.maidgroup.maidgroup.service.exceptions.ConsultationNotFoundException;
+import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
+import com.maidgroup.maidgroup.service.exceptions.UserNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
@@ -29,7 +32,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         Optional<Consultation> consultOptional = consultRepository.findById(consultation.getId());
 
         if(userOptional.isPresent() && consultOptional.isPresent()){
-            com.maidgroup.maidgroup.model.User retrievedUser = userOptional.get();
+            User retrievedUser = userOptional.get();
             Consultation retrievedConsult = consultOptional.get();
 
             if (retrievedUser.getUsername().equals(consultation.getUser().getUsername()) || retrievedUser.getRole() == Role.Admin) {
@@ -49,8 +52,22 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
     @Override
-    public Consultation getConsultById(int id, Consultation consultation) {
-        return null;
+    public Consultation getConsultById(User user, int id, Consultation consultation) {
+        Optional<Consultation> optionalConsultation = consultRepository.findById(id);
+        Optional<User> optionalUser = userRepository.findById(user.getUsername());
+        if(!optionalConsultation.isPresent()){
+            throw new ConsultationNotFoundException("No consultation was found.");
+        }
+        if(!optionalUser.isPresent()){
+            throw new UserNotFoundException("No user was found.");
+        }
+        Consultation retrievedConsultation = optionalConsultation.get();
+        User retrievedUser = optionalUser.get();
+
+        if (!retrievedUser.getUsername().equals(retrievedConsultation.getUser().getUsername()) || retrievedUser.getRole()!=Role.Admin){
+            throw new UnauthorizedException("You are not authorized to view this consultation.");
+        }
+        return retrievedConsultation;
     }
 
     @Override

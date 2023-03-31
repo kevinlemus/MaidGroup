@@ -13,7 +13,7 @@ public interface ConsultationService {
     void delete(User user, Consultation consultation);
     List<Consultation> getAllConsults(User user);
     List<Consultation> getOpenConsults(User user, Consultation consultation);
-    Consultation getConsultById(int id, Consultation consultation);
+    Consultation getConsultById(User user, int id, Consultation consultation);
     List<Consultation> getConsultByDate(User user);
     Consultation update(User user, Consultation consultation);
     void setConsultStatus();

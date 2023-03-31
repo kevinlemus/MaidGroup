@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/user")
 @CrossOrigin
@@ -61,4 +63,27 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
+
+    @GetMapping("{username}")
+    public ResponseEntity<User> getByUsername(@PathVariable("username") String username, @RequestBody User requester){
+        try {
+            return new ResponseEntity<User>(userService.getByUsername(username, requester), HttpStatus.OK);
+        } catch (UserNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (UnauthorizedException d) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+    }
+
+    @GetMapping("/getAllUsers")
+    public ResponseEntity<List<User>> getAllUsers(@RequestBody User user){
+        List<User> allUsers = userService.getAllUsers(user);
+        return ResponseEntity.status(HttpStatus.OK).body(allUsers);
+    }
+
+    @PutMapping("{username}")
+    public ResponseEntity<User> updateUser(@PathVariable("username") String username, @RequestBody User user){
+        return new ResponseEntity<User>(userService.updateUser(user, username), HttpStatus.OK);
+    }
 }
+

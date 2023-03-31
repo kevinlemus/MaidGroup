@@ -13,10 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
 
@@ -47,5 +44,12 @@ public class ConsultationController {
         } catch (UnauthorizedException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Consultation> getConsultById(@PathVariable("id") int id, @AuthenticationPrincipal UserDetails userDetails){
+        Optional<Consultation> optionalConsultation = consultRepository.findById(id);
+        return new ResponseEntity<Consultation>(consultService.getConsultById((User) userDetails, id, optionalConsultation.get()), HttpStatus.OK);
+
     }
 }
