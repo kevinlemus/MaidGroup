@@ -11,7 +11,7 @@ public interface UserService {
     void logout(HttpServletRequest request);
     User register(User user);
     User updateUser(User user, String username);
-    List<User> getAllUsers();
+    List<User> getAllUsers(User user);
     User getByUsername(String username, User requester);
     void delete(String username, User requester);
 

@@ -200,8 +200,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<User> getAllUsers() {
+    public List<User> getAllUsers(User user) {
         List<User> allUsers = userRepository.findAll();
+        if(!user.getRole().equals(Role.Admin)){
+            throw new UnauthorizedException("You are not authorized to view all accounts.");
+        }
         if(allUsers.isEmpty()) {
             throw new UserNotFoundException("No users were found.");
         }

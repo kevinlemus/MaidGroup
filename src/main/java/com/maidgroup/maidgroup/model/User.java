@@ -4,6 +4,8 @@ import com.maidgroup.maidgroup.model.userinfo.Gender;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 
 import java.time.LocalDate;
@@ -20,8 +22,10 @@ public class User {
     private String firstName;
     private String lastName;
     private String email;
+    @Enumerated(EnumType.STRING)
     private Gender gender;
     private LocalDate dateOfBirth;
+    @Enumerated(EnumType.STRING)
     private Role role;
 
 
