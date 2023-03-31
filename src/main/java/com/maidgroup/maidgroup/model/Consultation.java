@@ -19,6 +19,9 @@ public class Consultation {
     @Enumerated(EnumType.STRING)
     private ConsultationStatus status;
     boolean isOpen;
+    @ManyToOne
+    @JoinColumn(name = "username", referencedColumnName = "username")
+    private User user;
 
     public int getId() {
         return id;
@@ -90,5 +93,13 @@ public class Consultation {
 
     public void setOpen(boolean open) {
         isOpen = open;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }
