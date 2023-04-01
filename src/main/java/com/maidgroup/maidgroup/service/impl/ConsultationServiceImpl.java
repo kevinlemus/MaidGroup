@@ -1,16 +1,24 @@
 package com.maidgroup.maidgroup.service.impl;
 
+import com.google.i18n.phonenumbers.NumberParseException;
+import com.google.i18n.phonenumbers.PhoneNumberUtil;
+import com.google.i18n.phonenumbers.Phonenumber;
 import com.maidgroup.maidgroup.dao.ConsultationRepository;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.Consultation;
 import com.maidgroup.maidgroup.model.User;
+import com.maidgroup.maidgroup.model.consultationinfo.ConsultationStatus;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.service.ConsultationService;
+import com.maidgroup.maidgroup.service.exceptions.ConsultationAlreadyExists;
 import com.maidgroup.maidgroup.service.exceptions.ConsultationNotFoundException;
 import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
 import com.maidgroup.maidgroup.service.exceptions.UserNotFoundException;
+import com.twilio.Twilio;
+import com.twilio.rest.api.v2010.account.Message;
+import com.twilio.type.PhoneNumber;
+import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -23,7 +31,54 @@ public class ConsultationServiceImpl implements ConsultationService {
 
     @Override
     public Consultation create(Consultation consultation) {
-        return null;
+        int id = consultation.getId();
+        Consultation retrievedConsultation = consultRepository.findById(id).orElse(null);
+        if(retrievedConsultation!=null){
+            throw new ConsultationAlreadyExists("Consultation already exists");
+        }
+        EmailValidator emailValidator = EmailValidator.getInstance();
+        if (!emailValidator.isValid(consultation.getEmail())) {
+            throw new RuntimeException("Invalid email address");
+        }
+        if(consultation.getFirstName().isEmpty()){
+            throw new RuntimeException("First name cannot be empty");
+        }
+        if(consultation.getLastName().isEmpty()){
+            throw new RuntimeException("Last name cannot be empty");
+        }
+        if(consultation.getPhoneNumber().isEmpty()){
+            throw new RuntimeException("Must enter a phone number");
+        }
+        PhoneNumberUtil phoneNumberUtil = PhoneNumberUtil.getInstance();
+        try {
+            Phonenumber.PhoneNumber phoneNumber = phoneNumberUtil.parse(consultation.getPhoneNumber(), "US");
+            if (!phoneNumberUtil.isValidNumber(phoneNumber)) {
+                throw new RuntimeException("Invalid phone number");
+            }
+        } catch (NumberParseException e) {
+            throw new RuntimeException("Failed to parse phone number", e);
+        }
+        if(consultation.getPreferredContact()==null){
+            throw new RuntimeException("Must select a preferred contact method");
+        }
+        if(consultation.getDate()==null){
+            throw new RuntimeException("Must select a date for your consultation");
+        }
+        if(consultation.getTime()==null){
+            throw new RuntimeException("Must select a time for your consultation");
+        }
+        consultation.getMessage();
+
+        consultRepository.save(consultation);
+        consultation.setStatus(ConsultationStatus.OPEN);
+
+        String clientMessage = "Your consultation has been booked! We will contact you shortly to confirm details. \n"+consultation.toString()+" \n Notifications regarding your consultation will be sent via SMS. Reply CANCEL to cancel your consultation.";
+        String adminMessage = "The following consultation has been booked: \n"+consultation.toString();
+
+        TwilioSMS.sendSMS(consultation.getPhoneNumber(), clientMessage);
+        TwilioSMS.sendSMS("+3019384728", adminMessage);
+
+        return consultation;
     }
 
     @Override
@@ -84,4 +139,20 @@ public class ConsultationServiceImpl implements ConsultationService {
     public void setConsultStatus() {
 
     }
+
+public static class TwilioSMS {
+
+    //Twilio account credentials
+    public static final String ACCOUNT_SID = "ACe51c2a222e085880b8415842a0d5db9d";
+    public static final String AUTH_TOKEN = "3211f1f0456a96a9d64c54d07ae27589";
+    public static final String FROM_NUMBER = "+18446241944";
+
+    public static void sendSMS(String to, String messageBody) {
+        Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
+        Message message = Message.creator(new PhoneNumber(to), new PhoneNumber(FROM_NUMBER), messageBody).create();
+        System.out.println("SMS sent: " + message.getSid());
+    }
 }
+
+}
+

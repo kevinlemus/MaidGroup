@@ -4,6 +4,10 @@ import com.maidgroup.maidgroup.model.consultationinfo.ConsultationStatus;
 import com.maidgroup.maidgroup.model.consultationinfo.PreferredContact;
 import jakarta.persistence.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+
 @Entity
 public class Consultation {
     @Id
@@ -14,11 +18,12 @@ public class Consultation {
     String email;
     String phoneNumber;
     String message;
+    LocalDate date;
+    LocalTime time;
     @Enumerated(EnumType.STRING)
     PreferredContact preferredContact;
     @Enumerated(EnumType.STRING)
     private ConsultationStatus status;
-    boolean isOpen;
     @ManyToOne
     @JoinColumn(name = "username", referencedColumnName = "username")
     private User user;
@@ -87,19 +92,42 @@ public class Consultation {
         this.status = status;
     }
 
-    public boolean isOpen() {
-        return isOpen;
-    }
-
-    public void setOpen(boolean open) {
-        isOpen = open;
-    }
-
     public User getUser() {
         return user;
     }
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public void setDate(LocalDate date) {
+        this.date = date;
+    }
+
+    public LocalTime getTime() {
+        return time;
+    }
+
+    public void setTime(LocalTime time) {
+        this.time = time;
+    }
+
+    @Override
+    public String toString() {
+        return "Consultation{" +
+                "ID=" + id +
+                ", First Name='" + firstName + '\'' +
+                ", Last Name='" + lastName + '\'' +
+                ", Email='" + email + '\'' +
+                ", Phone Number='" + phoneNumber + '\'' +
+                ", Message='" + message + '\'' +
+                ", Date=" + date +
+                ", Time=" + time +
+                ", Preferred Contact=" + preferredContact +
+                '}';
     }
 }
