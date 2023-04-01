@@ -160,10 +160,9 @@ public static class TwilioSMS {
         }
 
     //Twilio account credentials
-        public static final String ACCOUNT_SID = "ACe51c2a222e085880b8415842a0d5db9d";
+        public static final String ACCOUNT_SID = properties.getProperty("accountsid");
         public static final String AUTH_TOKEN = properties.getProperty("authenticationtoken");;
-        public static final String FROM_NUMBER = "+18446241944";
-
+        public static final String FROM_NUMBER = properties.getProperty("fromnumber");
 
 
         public static void sendSMS(String to, String messageBody) {
