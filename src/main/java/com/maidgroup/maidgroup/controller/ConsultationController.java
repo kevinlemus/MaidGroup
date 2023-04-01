@@ -16,7 +16,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
-
+@RestController
+@RequestMapping("/consultation")
+@CrossOrigin
 public class ConsultationController {
 
     @Autowired

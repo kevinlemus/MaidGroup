@@ -19,8 +19,15 @@ import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
+import java.io.FileReader;
 
 public class ConsultationServiceImpl implements ConsultationService {
 
@@ -141,16 +148,28 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
 public static class TwilioSMS {
+    private static final Properties properties;
+
+        static {
+            properties = new Properties();
+            try (InputStream inputStream = TwilioSMS.class.getResourceAsStream("/db.properties")) {
+                properties.load(inputStream);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
     //Twilio account credentials
-    public static final String ACCOUNT_SID = "ACe51c2a222e085880b8415842a0d5db9d";
-    public static final String AUTH_TOKEN = "3211f1f0456a96a9d64c54d07ae27589";
-    public static final String FROM_NUMBER = "+18446241944";
+        public static final String ACCOUNT_SID = "ACe51c2a222e085880b8415842a0d5db9d";
+        public static final String AUTH_TOKEN = properties.getProperty("authenticationtoken");;
+        public static final String FROM_NUMBER = "+18446241944";
 
-    public static void sendSMS(String to, String messageBody) {
-        Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
-        Message message = Message.creator(new PhoneNumber(to), new PhoneNumber(FROM_NUMBER), messageBody).create();
-        System.out.println("SMS sent: " + message.getSid());
+
+
+        public static void sendSMS(String to, String messageBody) {
+            Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
+            Message message = Message.creator(new PhoneNumber(to), new PhoneNumber(FROM_NUMBER), messageBody).create();
+            System.out.println("SMS sent: " + message.getSid());
     }
 }
 
