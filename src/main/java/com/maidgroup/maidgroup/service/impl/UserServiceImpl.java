@@ -2,6 +2,7 @@ package com.maidgroup.maidgroup.service.impl;
 
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
+import com.maidgroup.maidgroup.model.userinfo.Age;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.UserService;
@@ -131,7 +132,12 @@ public class UserServiceImpl implements UserService {
         user.setPassword(hashedPassword);
         user.getPreviousPasswords().add(hashedPassword);
 
-        return userRepository.save(user);
+        userRepository.save(user);
+
+        Age age = new Age();
+        user.setAge(age.getAge(user.getDateOfBirth()));
+
+        return user;
 
     }
 
@@ -190,7 +196,9 @@ public class UserServiceImpl implements UserService {
                 if(user.getDateOfBirth().isAfter(LocalDate.now())){
                     throw new RuntimeException("Date of birth cannot be in the future.");
                 }
+                Age age = new Age();
                 existingUser.setDateOfBirth(user.getDateOfBirth());
+                existingUser.setAge(age.getAge(user.getDateOfBirth()));
             }
 
             return userRepository.save(existingUser);

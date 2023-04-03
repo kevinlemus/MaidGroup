@@ -23,10 +23,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
+import java.time.LocalDate;
+import java.util.*;
 import java.io.FileReader;
 
 public class ConsultationServiceImpl implements ConsultationService {
@@ -104,13 +102,44 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
     @Override
-    public List<Consultation> getAllConsults(User user) {
-        return null;
+    public List<Consultation> getAllConsults(Consultation consultation) {
+        List<Consultation> allConsultations = consultRepository.findAll();
+        if(!consultation.getUser().getRole().equals(Role.Admin)){
+            throw new UnauthorizedException("You are not authorized to view all consultations.");
+        }
+        if(allConsultations.isEmpty()) {
+            throw new UserNotFoundException("No consultations were found.");
+        }
+        return allConsultations;
     }
 
     @Override
-    public List<Consultation> getOpenConsults(User user, Consultation consultation) {
-        return null;
+    public List<Consultation> getConsultByStatus(User user, Consultation consultation, ConsultationStatus status) {
+        Optional<List<Consultation>> optionalConsultation = Optional.ofNullable(consultRepository.findByStatus(status));
+        Optional<User> optionalUser = userRepository.findById(user.getUsername());
+        if(!optionalConsultation.isPresent()){
+            throw new ConsultationNotFoundException("No consultation was found.");
+        }
+        if(!optionalUser.isPresent()){
+            throw new UserNotFoundException("No user was found.");
+        }
+        List<Consultation> retrievedConsultations = optionalConsultation.get();
+        User retrievedUser = optionalUser.get();
+
+        if(retrievedUser.getRole()!=Role.Admin) {
+            List<Consultation> userConsultations = new ArrayList<>();
+            for (Consultation c : retrievedConsultations) {
+                if (c.getUser().getUsername().equals(retrievedUser.getUsername())) {
+                    userConsultations.add(c);
+                }
+            }
+            if (userConsultations.isEmpty()) {
+                throw new NullPointerException("No consultations with the status " + status + "were found.");
+            }
+            return userConsultations;
+        }
+
+        return retrievedConsultations;
     }
 
     @Override
@@ -133,8 +162,34 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
     @Override
-    public List<Consultation> getConsultByDate(User user) {
-        return null;
+    public List<Consultation> getConsultByDate(User user, Consultation consultation, LocalDate date) {
+        Optional<List<Consultation>> optionalConsultations = Optional.ofNullable(consultRepository.findByDate(date));
+        Optional<User> optionalUser = userRepository.findById(user.getUsername());
+
+        if(!optionalConsultations.isPresent()){
+            throw new RuntimeException("No consultations were found");
+        }
+        if(!optionalUser.isPresent()){
+            throw new RuntimeException("No user was found");
+        }
+        User retrievedUser = optionalUser.get();
+        List<Consultation> retrievedConsultations = optionalConsultations.get();
+
+        if(!retrievedUser.getRole().equals(Role.Admin)){
+            List<Consultation> userConsultations = new ArrayList<>();
+            for(Consultation c : retrievedConsultations){
+                if(c.getUser().getUsername().equals(retrievedUser.getUsername())){
+                    userConsultations.add(c);
+                }
+            }
+
+            if(userConsultations.isEmpty()){
+                throw new RuntimeException("You have no consultations for "+date+".");
+            }
+            return userConsultations;
+        }
+
+        return retrievedConsultations;
     }
 
     @Override
