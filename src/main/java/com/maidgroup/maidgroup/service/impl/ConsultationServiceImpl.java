@@ -194,7 +194,63 @@ public class ConsultationServiceImpl implements ConsultationService {
 
     @Override
     public Consultation update(User user, Consultation consultation) {
-        return null;
+        Optional<User> optionalUser = userRepository.findById(user.getUsername());
+        Optional<Consultation> optionalConsultation = consultRepository.findById(consultation.getId());
+        if(!optionalUser.isPresent()){
+            throw new UserNotFoundException("No user was found");
+        }
+        if(!optionalConsultation.isPresent()){
+            throw new ConsultationNotFoundException("No consultation was found");
+        }
+
+        User retrievedUser = optionalUser.get();
+        Consultation retrievedConsultation = optionalConsultation.get();
+
+        if(!retrievedConsultation.getUser().getUsername().equals(retrievedUser.getUsername())){
+            throw new UnauthorizedException("You may only update consultations under your account");
+        }
+
+        if(consultation.getFirstName()!=null){
+            retrievedConsultation.setFirstName(consultation.getFirstName());
+        }
+        if(consultation.getLastName()!=null){
+            retrievedConsultation.setLastName(consultation.getLastName());
+        }
+        if(consultation.getEmail()!=null){
+            EmailValidator emailValidator = EmailValidator.getInstance();
+            if (!emailValidator.isValid(consultation.getEmail())) {
+                throw new RuntimeException("Invalid email address");
+            }
+            retrievedConsultation.setEmail(consultation.getEmail());
+        }
+        if(consultation.getPhoneNumber()!=null){
+            PhoneNumberUtil phoneNumberUtil = PhoneNumberUtil.getInstance();
+            try {
+                Phonenumber.PhoneNumber phoneNumber = phoneNumberUtil.parse(consultation.getPhoneNumber(), "US");
+                if (!phoneNumberUtil.isValidNumber(phoneNumber)) {
+                    throw new RuntimeException("Invalid phone number");
+                }
+            } catch (NumberParseException e) {
+                throw new RuntimeException("Failed to parse phone number", e);
+            }
+            retrievedConsultation.setPhoneNumber(consultation.getPhoneNumber());
+        }
+        if(consultation.getMessage()!=null){
+            retrievedConsultation.setMessage(consultation.getMessage());
+        }
+        if(consultation.getDate()!=null){
+            retrievedConsultation.setDate(consultation.getDate());
+        }
+        if(consultation.getTime()!=null){
+            retrievedConsultation.setTime(consultation.getTime());
+        }
+        if(consultation.getPreferredContact()!=null){
+            retrievedConsultation.setPreferredContact(consultation.getPreferredContact());
+        }
+        if(consultation.getStatus()!=null){
+            retrievedConsultation.setStatus(consultation.getStatus());
+        }
+        return retrievedConsultation;
     }
 
     @Override
