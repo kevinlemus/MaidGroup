@@ -4,10 +4,13 @@ import com.maidgroup.maidgroup.dao.ConsultationRepository;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.Consultation;
 import com.maidgroup.maidgroup.model.User;
+import com.maidgroup.maidgroup.model.consultationinfo.ConsultationStatus;
 import com.maidgroup.maidgroup.service.ConsultationService;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.exceptions.ConsultationNotFoundException;
 import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
+import com.maidgroup.maidgroup.service.exceptions.UserNotFoundException;
+import jdk.jshell.Snippet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -67,6 +70,20 @@ public class ConsultationController {
             return ResponseEntity.notFound().build();
         }catch (UnauthorizedException d){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+    }
+
+    @GetMapping("/{status}")
+    public ResponseEntity<List<Consultation>> getConsultByStatus(@PathVariable("status")ConsultationStatus status, @AuthenticationPrincipal UserDetails userDetails){
+        try{
+            User user = userRepository.findByUsername(userDetails.getUsername());
+            List<Consultation> allConsultations = consultService.getConsultByStatus(user, status);
+            return ResponseEntity.status(HttpStatus.OK).body(allConsultations);
+
+        }catch (UserNotFoundException e){
+            return ResponseEntity.notFound().build();
+        }catch (ConsultationNotFoundException d){
+            return ResponseEntity.notFound().build();
         }
     }
 

@@ -116,7 +116,7 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
     @Override
-    public List<Consultation> getConsultByStatus(User user, Consultation consultation, ConsultationStatus status) {
+    public List<Consultation> getConsultByStatus(User user, ConsultationStatus status) {
         Optional<List<Consultation>> optionalConsultation = Optional.ofNullable(consultRepository.findByStatus(status));
         Optional<User> optionalUser = userRepository.findById(user.getUsername());
         if(!optionalConsultation.isPresent()){
