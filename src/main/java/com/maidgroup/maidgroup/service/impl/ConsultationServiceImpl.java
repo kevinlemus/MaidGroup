@@ -20,12 +20,10 @@ import com.twilio.type.PhoneNumber;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.*;
-import java.io.FileReader;
 
 public class ConsultationServiceImpl implements ConsultationService {
 
@@ -72,13 +70,12 @@ public class ConsultationServiceImpl implements ConsultationService {
         if(consultation.getTime()==null){
             throw new RuntimeException("Must select a time for your consultation");
         }
-        consultation.getMessage();
 
         consultRepository.save(consultation);
         consultation.setStatus(ConsultationStatus.OPEN);
 
-        String clientMessage = "Your consultation has been booked! We will contact you shortly to confirm details. \n"+consultation.toString()+" \n Notifications regarding your consultation will be sent via SMS. Reply CANCEL to cancel your consultation.";
-        String adminMessage = "The following consultation has been booked: \n"+consultation.toString();
+        String clientMessage = "Your consultation has been booked! We will contact you shortly to confirm details. \n"+consultation+" \n Notifications regarding your consultation will be sent via SMS. Reply CANCEL to cancel your consultation.";
+        String adminMessage = "The following consultation has been booked: \n"+consultation;
 
         TwilioSMS.sendSMS(consultation.getPhoneNumber(), clientMessage);
         TwilioSMS.sendSMS("+3019384728", adminMessage);
@@ -254,9 +251,23 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
     @Override
-    public void setConsultStatus() {
-
+    public void cancelConsultation(String from, String body) {
+        Optional<Consultation> optionalConsultation = consultRepository.findByPhoneNumber(from);
+        if(!optionalConsultation.isPresent()){
+            throw new RuntimeException("There is no consultation associated with this phone number.");
+        }
+        if (!body.equalsIgnoreCase("CANCEL")) {
+            throw new RuntimeException("Invalid message.");
+        }
+            Consultation consultation = optionalConsultation.get();
+            consultation.setStatus(ConsultationStatus.CANCELLED);
+            consultRepository.save(consultation);
+            String clientMessage = "Your consultation has successfully been cancelled.Thank you for considering our services.";
+            String adminMessage = "The following consultation has been cancelled: \n"+consultation;
+            TwilioSMS.sendSMS(from, clientMessage);
+            TwilioSMS.sendSMS("+3019384728", adminMessage);
     }
+
 
 public static class TwilioSMS {
     private static final Properties properties;
@@ -272,7 +283,7 @@ public static class TwilioSMS {
 
     //Twilio account credentials
         public static final String ACCOUNT_SID = properties.getProperty("accountsid");
-        public static final String AUTH_TOKEN = properties.getProperty("authenticationtoken");;
+        public static final String AUTH_TOKEN = properties.getProperty("authenticationtoken");
         public static final String FROM_NUMBER = properties.getProperty("fromnumber");
 
 

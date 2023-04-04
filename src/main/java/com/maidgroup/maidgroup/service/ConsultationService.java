@@ -18,6 +18,6 @@ public interface ConsultationService {
     Consultation getConsultById(User user, int id, Consultation consultation);
     List<Consultation> getConsultByDate(User user, Consultation consultation, LocalDate date);
     Consultation update(User user, Consultation consultation);
-    void setConsultStatus();
+    void cancelConsultation(String from, String body);
 
 }

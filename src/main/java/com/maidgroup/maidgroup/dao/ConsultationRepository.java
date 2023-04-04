@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface ConsultationRepository extends JpaRepository<Consultation, Integer> {
 
@@ -17,5 +18,7 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Inte
     @Query("select * from Consultation where date = :date")
     public List<Consultation> findByDate(@Param("date") LocalDate date);
 
+    @Query("select c from Consultation c where c.phoneNumber = :phoneNumber")
+    public Optional<Consultation> findByPhoneNumber(@Param("phoneNumber") String phoneNumber);
 
 }
