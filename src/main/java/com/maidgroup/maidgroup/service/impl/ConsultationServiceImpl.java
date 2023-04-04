@@ -19,9 +19,12 @@ import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.attribute.UserPrincipal;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -99,9 +102,11 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
     @Override
-    public List<Consultation> getAllConsults(Consultation consultation) {
+    public List<Consultation> getAllConsults(User user) {
+        Optional<User> optionalUser = userRepository.findById(user.getUsername());
         List<Consultation> allConsultations = consultRepository.findAll();
-        if(!consultation.getUser().getRole().equals(Role.Admin)){
+        User retrievedUser = optionalUser.get();
+        if(!retrievedUser.getRole().equals(Role.Admin)){
             throw new UnauthorizedException("You are not authorized to view all consultations.");
         }
         if(allConsultations.isEmpty()) {
