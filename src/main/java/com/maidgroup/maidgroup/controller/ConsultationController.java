@@ -7,9 +7,7 @@ import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.consultationinfo.ConsultationStatus;
 import com.maidgroup.maidgroup.service.ConsultationService;
 import com.maidgroup.maidgroup.service.UserService;
-import com.maidgroup.maidgroup.service.exceptions.ConsultationNotFoundException;
-import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
-import com.maidgroup.maidgroup.service.exceptions.UserNotFoundException;
+import com.maidgroup.maidgroup.service.exceptions.*;
 import jdk.jshell.Snippet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -40,7 +38,7 @@ public class ConsultationController {
     @PostMapping("/create")
     public ResponseEntity<Consultation> createConsultation(@RequestBody Consultation consultation){
         consultService.create(consultation);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(consultation);
     }
 
     @DeleteMapping("/{id}")
@@ -110,5 +108,38 @@ public class ConsultationController {
         }
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<Consultation> update(@PathVariable("id")int id, @AuthenticationPrincipal UserDetails userDetails){
+        try{
+            Consultation consultation = consultRepository.findById(id).orElseThrow();
+            User user = userRepository.findById(userDetails.getUsername()).orElseThrow();
+            consultService.update(user, consultation);
+            return ResponseEntity.ok().body(consultation);
+        }catch (ConsultationNotFoundException c){
+            return ResponseEntity.notFound().build();
+        }catch (UserNotFoundException u){
+            return ResponseEntity.notFound().build();
+        }catch (UnauthorizedException a){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }catch (InvalidEmailException e){
+            return ResponseEntity.badRequest().build();
+        }catch(InvalidPhoneNumberException p){
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<Consultation> cancelConsultation (@PathVariable("id")int id, @RequestParam("from") String from, @RequestBody String body, @AuthenticationPrincipal UserDetails userDetails){
+        try{
+            Consultation consultation = consultRepository.findById(id).orElseThrow();
+            User user = userRepository.findById(userDetails.getUsername()).orElseThrow();
+            consultService.cancelConsultation(from, body);
+            return ResponseEntity.ok().build();
+        }catch (ConsultationNotFoundException c){
+            return ResponseEntity.notFound().build();
+        }catch (InvalidSmsMessageException s){
+            return ResponseEntity.badRequest().build();
+        }
+    }
 
 }

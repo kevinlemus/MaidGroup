@@ -52,7 +52,7 @@ public class UserController {
         return new ResponseEntity<User>(userService.register(user), HttpStatus.CREATED);
     }
 
-    @PostMapping("{username}")
+    @PostMapping("/{username}")
     public ResponseEntity<String> delete(@PathVariable("username") String username, @RequestBody User requester) {
         try {
             userService.delete(username, requester);
@@ -64,7 +64,7 @@ public class UserController {
         }
     }
 
-    @GetMapping("{username}")
+    @GetMapping("/{username}")
     public ResponseEntity<User> getByUsername(@PathVariable("username") String username, @RequestBody User requester){
         try {
             return new ResponseEntity<User>(userService.getByUsername(username, requester), HttpStatus.OK);
@@ -81,7 +81,7 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.OK).body(allUsers);
     }
 
-    @PutMapping("{username}")
+    @PutMapping("/{username}")
     public ResponseEntity<User> updateUser(@PathVariable("username") String username, @RequestBody User user){
         return new ResponseEntity<User>(userService.updateUser(user, username), HttpStatus.OK);
     }

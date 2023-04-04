@@ -10,10 +10,7 @@ import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.consultationinfo.ConsultationStatus;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.service.ConsultationService;
-import com.maidgroup.maidgroup.service.exceptions.ConsultationAlreadyExists;
-import com.maidgroup.maidgroup.service.exceptions.ConsultationNotFoundException;
-import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
-import com.maidgroup.maidgroup.service.exceptions.UserNotFoundException;
+import com.maidgroup.maidgroup.service.exceptions.*;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
@@ -221,7 +218,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         if(consultation.getEmail()!=null){
             EmailValidator emailValidator = EmailValidator.getInstance();
             if (!emailValidator.isValid(consultation.getEmail())) {
-                throw new RuntimeException("Invalid email address");
+                throw new InvalidEmailException("Invalid email address");
             }
             retrievedConsultation.setEmail(consultation.getEmail());
         }
@@ -230,7 +227,7 @@ public class ConsultationServiceImpl implements ConsultationService {
             try {
                 Phonenumber.PhoneNumber phoneNumber = phoneNumberUtil.parse(consultation.getPhoneNumber(), "US");
                 if (!phoneNumberUtil.isValidNumber(phoneNumber)) {
-                    throw new RuntimeException("Invalid phone number");
+                    throw new InvalidPhoneNumberException("Invalid phone number");
                 }
             } catch (NumberParseException e) {
                 throw new RuntimeException("Failed to parse phone number", e);
@@ -259,10 +256,10 @@ public class ConsultationServiceImpl implements ConsultationService {
     public void cancelConsultation(String from, String body) {
         Optional<Consultation> optionalConsultation = consultRepository.findByPhoneNumber(from);
         if(!optionalConsultation.isPresent()){
-            throw new RuntimeException("There is no consultation associated with this phone number.");
+            throw new ConsultationNotFoundException("There is no consultation associated with this phone number.");
         }
         if (!body.equalsIgnoreCase("CANCEL")) {
-            throw new RuntimeException("Invalid message.");
+            throw new InvalidSmsMessageException("Invalid message.");
         }
             Consultation consultation = optionalConsultation.get();
             consultation.setStatus(ConsultationStatus.CANCELLED);
