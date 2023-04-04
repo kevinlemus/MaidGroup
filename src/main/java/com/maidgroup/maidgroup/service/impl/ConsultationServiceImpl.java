@@ -164,7 +164,7 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
     @Override
-    public List<Consultation> getConsultByDate(User user, Consultation consultation, LocalDate date) {
+    public List<Consultation> getConsultByDate(User user, LocalDate date) {
         Optional<List<Consultation>> optionalConsultations = Optional.ofNullable(consultRepository.findByDate(date));
         Optional<User> optionalUser = userRepository.findById(user.getUsername());
 
@@ -205,7 +205,7 @@ public class ConsultationServiceImpl implements ConsultationService {
             throw new ConsultationNotFoundException("No consultation was found");
         }
 
-        User retrievedUser = optionalUser.get();
+        User retrievedUser = optionalUser.orElseThrow();
         Consultation retrievedConsultation = optionalConsultation.get();
 
         if(!retrievedConsultation.getUser().getUsername().equals(retrievedUser.getUsername())){

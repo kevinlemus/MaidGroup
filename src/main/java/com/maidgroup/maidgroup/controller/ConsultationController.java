@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.swing.text.html.Option;
 import java.nio.file.attribute.UserPrincipal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 @RestController
@@ -89,8 +90,25 @@ public class ConsultationController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Consultation> getConsultById(@PathVariable("id") int id, @AuthenticationPrincipal UserDetails userDetails){
-        Optional<Consultation> optionalConsultation = consultRepository.findById(id);
-        return new ResponseEntity<Consultation>(consultService.getConsultById((User) userDetails, id, optionalConsultation.get()), HttpStatus.OK);
+        Consultation consultation = consultRepository.findById(id).orElse(null);
+        return new ResponseEntity<Consultation>(consultService.getConsultById((User) userDetails, id, consultation), HttpStatus.OK);
 
     }
+
+    @GetMapping("/{date}")
+    public ResponseEntity<List<Consultation>> getConsultByDate(@PathVariable("date")LocalDate date, @AuthenticationPrincipal UserDetails userDetails){
+        try {
+            List<Consultation> consultation = consultRepository.findByDate(date);
+            User user = userRepository.findById(userDetails.getUsername()).orElse(null);
+            return new ResponseEntity<List<Consultation>>(consultService.getConsultByDate(user, date), HttpStatus.OK);
+        }catch (UserNotFoundException u){
+            return ResponseEntity.notFound().build();
+        }catch (ConsultationNotFoundException c){
+            return ResponseEntity.notFound().build();
+        }catch (UnauthorizedException e){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+    }
+
+
 }
