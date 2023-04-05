@@ -108,7 +108,7 @@ public class ConsultationController {
         }
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{id}/update")
     public ResponseEntity<Consultation> update(@PathVariable("id")int id, @AuthenticationPrincipal UserDetails userDetails){
         try{
             Consultation consultation = consultRepository.findById(id).orElseThrow();
