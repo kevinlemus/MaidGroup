@@ -1,16 +1,20 @@
 package com.maidgroup.maidgroup.model;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 
 @Entity
 public class Invoice {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
-    private String serviceName;
-    private double price;
+    private ArrayList<String> serviceName;
+    private ArrayList<Double> price;
     private LocalDate date;
     private String firstName;
     private String LastName;
@@ -25,19 +29,19 @@ public class Invoice {
         this.id = id;
     }
 
-    public String getServiceName() {
+    public ArrayList<String> getServiceName() {
         return serviceName;
     }
 
-    public void setServiceName(String serviceName) {
+    public void setServiceName(ArrayList<String> serviceName) {
         this.serviceName = serviceName;
     }
 
-    public double getPrice() {
+    public ArrayList<Double> getPrice() {
         return price;
     }
 
-    public void setPrice(double price) {
+    public void setPrice(ArrayList<Double> price) {
         this.price = price;
     }
 
