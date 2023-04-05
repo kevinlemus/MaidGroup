@@ -20,6 +20,7 @@ public class Invoice {
     private String LastName;
     private String clientEmail;
     private String phoneNumber;
+    private double totalPrice;
 
     public int getId() {
         return id;
