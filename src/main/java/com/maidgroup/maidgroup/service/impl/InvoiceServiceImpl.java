@@ -34,4 +34,9 @@ public class InvoiceServiceImpl implements InvoiceService {
     public List<Invoice> getAllInvoices(User user) {
         return null;
     }
+
+    @Override
+    public Invoice update(User user, Invoice invoice) {
+        return null;
+    }
 }
