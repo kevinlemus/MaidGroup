@@ -10,5 +10,6 @@ public interface InvoiceService {
     Invoice createInvoice(Invoice invoice);
     void deleteInvoice(Invoice invoice, User user);
     List<Invoice> getAllInvoices(User user);
+    Invoice update (User user, Invoice invoice);
 
 }
