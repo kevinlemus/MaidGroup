@@ -5,7 +5,6 @@ import com.maidgroup.maidgroup.model.consultationinfo.PreferredContact;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 @Entity
@@ -21,11 +20,11 @@ public class Consultation {
     LocalDate date;
     LocalTime time;
     @Enumerated(EnumType.STRING)
-    PreferredContact preferredContact;
+    PreferredContact preferredContact = PreferredContact.Default;
     @Enumerated(EnumType.STRING)
     private ConsultationStatus status;
     @ManyToOne
-    @JoinColumn(name = "username", referencedColumnName = "username")
+    @JoinColumn(name = "user_username")
     private User user;
 
     public int getId() {

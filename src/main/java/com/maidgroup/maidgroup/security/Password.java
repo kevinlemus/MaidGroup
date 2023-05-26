@@ -1,10 +1,16 @@
 package com.maidgroup.maidgroup.security;
 
+import jakarta.persistence.*;
+
 import java.time.LocalDate;
 
+@Entity
 public class Password {
-
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
     private String hashedPassword;
+    @Column(name = "date_last_used", columnDefinition = "DATE")
     private LocalDate dateLastUsed;
 
     public Password(String hashedPassword, LocalDate dateLastUsed) {
@@ -17,6 +23,14 @@ public class Password {
     }
 
     public Password(){}
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
 
     public String getHashedPassword() {
         return hashedPassword;

@@ -3,7 +3,11 @@ package com.maidgroup.maidgroup.model;
 import com.maidgroup.maidgroup.model.userinfo.Gender;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
+import com.maidgroup.maidgroup.security.PasswordConverter;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Type;
+import org.springframework.context.annotation.Bean;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -13,11 +17,18 @@ import java.util.List;
 public class User {
 
     @Id
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Column(name = "username", columnDefinition = "varchar(255) DEFAULT ''")
     private String username;
+    @Column(name = "password", columnDefinition = "varchar(255)")
+    @Convert(converter = PasswordConverter.class, attributeName = "hashedPassword")
     private Password password;
+
+    @Column(name = "confirmPassword", columnDefinition = "varchar(255)")
+    @Convert(converter = PasswordConverter.class, attributeName = "hashedPassword")
     private Password confirmPassword;
-    private List<Password> previousPasswords;
+    //@ElementCollection
+    @CollectionTable(name = "previous_passwords", joinColumns = @JoinColumn(name = "username"))
+    private List<Password> previousPasswords = new ArrayList<>();
     private String firstName;
     private String lastName;
     private String email;
@@ -28,6 +39,8 @@ public class User {
     private Role role;
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Consultation> consultations = new ArrayList<>();
+    private int age;
+
 
     public Role getRole() {
         return role;
@@ -115,5 +128,13 @@ public class User {
 
     public void setConsultations(List<Consultation> consultations) {
         this.consultations = consultations;
+    }
+
+    public int getAge() {
+        return age;
+    }
+
+    public void setAge(int age) {
+        this.age = age;
     }
 }

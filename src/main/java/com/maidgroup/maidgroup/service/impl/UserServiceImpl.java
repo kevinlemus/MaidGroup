@@ -1,7 +1,9 @@
 package com.maidgroup.maidgroup.service.impl;
 
+import com.maidgroup.maidgroup.dao.PasswordRepository;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
+import com.maidgroup.maidgroup.model.userinfo.Age;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.UserService;
@@ -27,6 +29,8 @@ public class UserServiceImpl implements UserService {
     @Autowired
     UserRepository userRepository;
     @Autowired
+    PasswordRepository passwordRepository;
+    @Autowired
     BCryptPasswordEncoder passwordEncoder;
 
     @Override
@@ -50,20 +54,20 @@ public class UserServiceImpl implements UserService {
     }
 
     private void validatePassword(String password) {
-        String regex = "(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\\S+$){8,}";
+        String regex = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&+=])(?=\\S+$).{8,}$";
         String[] requirements = {
                 "At least 8 characters long",
                 "Contains at least one digit",
                 "Contains at least one lowercase letter",
                 "Contains at least one uppercase letter",
-                "Contains at least one special character (@#$%^&+=)",
+                "Contains at least one special character (!@#$%^&+=)",
                 "Cannot have empty spaces"
         };
         List<String> missingRequirements = new ArrayList<>();
 
         Pattern pattern = Pattern.compile(regex);
         Matcher matcher = pattern.matcher(password);
-        if (!matcher.matches()) {
+        if (!matcher.find()) {
             for (int i = 0; i < requirements.length; i++) {
                 if (!password.matches(".*[" + getRegexForRequirement(i) + "]")) {
                     missingRequirements.add(requirements[i]);
@@ -76,7 +80,7 @@ public class UserServiceImpl implements UserService {
     private String getRegexForRequirement(int index) {
         switch (index) {
             case 0:
-                return "";
+                return ".";
             case 1:
                 return "0-9";
             case 2:
@@ -84,7 +88,7 @@ public class UserServiceImpl implements UserService {
             case 3:
                 return "A-Z";
             case 4:
-                return "@#$%^&+=";
+                return "!@#$%^&+=";
             case 5:
                 return " ";
             default:
@@ -115,9 +119,11 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Must select a gender option");
         }
 
-        validatePassword(user.getPassword().toString());
+        String password = user.getPassword().getHashedPassword();
+        validatePassword(password);
+        String confirmPassword = user.getConfirmPassword().getHashedPassword();
 
-        if(!user.getPassword().equals(user.getConfirmPassword())){
+        if (confirmPassword == null || !password.equals(confirmPassword)) {
             throw new PasswordMismatchException("Passwords do not match.");
         }
         if(user.getDateOfBirth() == null){
@@ -128,10 +134,16 @@ public class UserServiceImpl implements UserService {
         }
 
         Password hashedPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));
+        hashedPassword = passwordRepository.save(hashedPassword);
         user.setPassword(hashedPassword);
         user.getPreviousPasswords().add(hashedPassword);
 
-        return userRepository.save(user);
+        userRepository.saveAndFlush(user);
+
+        Age age = new Age();
+        user.setAge(age.getAge(user.getDateOfBirth()));
+
+        return user;
 
     }
 
@@ -147,7 +159,7 @@ public class UserServiceImpl implements UserService {
                 throw new UnauthorizedException("You are not authorized to update this account.");
             }
             if(user.getUsername() != null && !user.getUsername().equals(existingUser.getUsername())){
-                if(userRepository.existsByUsername(user.getUsername())){
+                if(userRepository.findById(user.getUsername()).orElseThrow()!=null){
                     throw new UsernameAlreadyExists("Username is already taken.");
                 }
                 existingUser.setUsername(user.getUsername());
@@ -157,7 +169,7 @@ public class UserServiceImpl implements UserService {
 
                 validatePassword(user.getPassword().toString());
 
-                if(user.getConfirmPassword() == null || !user.getConfirmPassword().equals(user.getPassword())){
+                if(user.getConfirmPassword() == null || user.getConfirmPassword().toString().trim().equals("") || !user.getConfirmPassword().toString().equals(user.getPassword().toString())){
                     throw new PasswordMismatchException("Passwords do not match.");
                 }
                 if(existingUser.getPreviousPasswords().stream().anyMatch(p -> passwordEncoder.matches(user.getPassword().toString(), String.valueOf(p)))){
@@ -190,7 +202,9 @@ public class UserServiceImpl implements UserService {
                 if(user.getDateOfBirth().isAfter(LocalDate.now())){
                     throw new RuntimeException("Date of birth cannot be in the future.");
                 }
+                Age age = new Age();
                 existingUser.setDateOfBirth(user.getDateOfBirth());
+                existingUser.setAge(age.getAge(user.getDateOfBirth()));
             }
 
             return userRepository.save(existingUser);
