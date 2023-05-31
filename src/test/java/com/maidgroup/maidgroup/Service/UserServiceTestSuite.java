@@ -56,4 +56,20 @@ public class UserServiceTestSuite {
         //Assert
         Assert.assertNotNull(user); //If user is not registered a null object is returned.
     }
+
+    @Test
+    public void loginUser_returnsSuccessfulLogin_givenExistingUser(){
+
+        Password password = new Password("Missypfoo20!");
+        //Arrange
+        User existingUser = new User();
+        existingUser.setUsername("missypfoo");
+        existingUser.setPassword(password);
+
+        //Act
+        User user = sut.login(existingUser.getUsername(), existingUser.getPassword().toString());
+
+        //Assert
+        Assert.assertNotNull(user);
+    }
 }

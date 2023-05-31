@@ -16,6 +16,8 @@ import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,8 @@ public class ConsultationServiceImpl implements ConsultationService {
     UserRepository userRepository;
     @Autowired
     ConsultationRepository consultRepository;
+
+    TwilioSMS twilioSMS;
 
     @Override
     public Consultation create(Consultation consultation) {
@@ -79,15 +83,15 @@ public class ConsultationServiceImpl implements ConsultationService {
         String clientMessage = "Your consultation has been booked! We will contact you shortly to confirm details. \n"+consultation+" \n Notifications regarding your consultation will be sent via SMS. Reply CANCEL to cancel your consultation.";
         String adminMessage = "The following consultation has been booked: \n"+consultation;
 
-        TwilioSMS.sendSMS(consultation.getPhoneNumber(), clientMessage);
-        TwilioSMS.sendSMS("+3019384728", adminMessage);
+        twilioSMS.sendSMS(consultation.getPhoneNumber(), clientMessage);
+        twilioSMS.sendSMS("+3019384728", adminMessage);
 
         return consultation;
     }
 
     @Override
     public void delete(User user, Consultation consultation) {
-        Optional<User> userOptional = userRepository.findById(user.getUsername());
+        Optional<User> userOptional = userRepository.findById(user.getUserId());
         Optional<Consultation> consultOptional = consultRepository.findById(consultation.getId());
 
         if(userOptional.isPresent() && consultOptional.isPresent()){
@@ -102,7 +106,7 @@ public class ConsultationServiceImpl implements ConsultationService {
 
     @Override
     public List<Consultation> getAllConsults(User user) {
-        Optional<User> optionalUser = userRepository.findById(user.getUsername());
+        Optional<User> optionalUser = userRepository.findById(user.getUserId());
         List<Consultation> allConsultations = consultRepository.findAll();
         User retrievedUser = optionalUser.get();
         if(!retrievedUser.getRole().equals(Role.Admin)){
@@ -117,7 +121,7 @@ public class ConsultationServiceImpl implements ConsultationService {
     @Override
     public List<Consultation> getConsultByStatus(User user, ConsultationStatus status) {
         Optional<List<Consultation>> optionalConsultation = Optional.ofNullable(consultRepository.findByStatus(status));
-        Optional<User> optionalUser = userRepository.findById(user.getUsername());
+        Optional<User> optionalUser = userRepository.findById(user.getUserId());
         if(!optionalConsultation.isPresent()){
             throw new ConsultationNotFoundException("No consultation was found.");
         }
@@ -146,7 +150,7 @@ public class ConsultationServiceImpl implements ConsultationService {
     @Override
     public Consultation getConsultById(User user, int id, Consultation consultation) {
         Optional<Consultation> optionalConsultation = consultRepository.findById(id);
-        Optional<User> optionalUser = userRepository.findById(user.getUsername());
+        Optional<User> optionalUser = userRepository.findById(user.getUserId());
         if(!optionalConsultation.isPresent()){
             throw new ConsultationNotFoundException("No consultation was found.");
         }
@@ -165,7 +169,7 @@ public class ConsultationServiceImpl implements ConsultationService {
     @Override
     public List<Consultation> getConsultByDate(User user, LocalDate date) {
         Optional<List<Consultation>> optionalConsultations = Optional.ofNullable(consultRepository.findByDate(date));
-        Optional<User> optionalUser = userRepository.findById(user.getUsername());
+        Optional<User> optionalUser = userRepository.findById(user.getUserId());
 
         if(!optionalConsultations.isPresent()){
             throw new RuntimeException("No consultations were found");
@@ -195,7 +199,7 @@ public class ConsultationServiceImpl implements ConsultationService {
 
     @Override
     public Consultation update(User user, Consultation consultation) {
-        Optional<User> optionalUser = userRepository.findById(user.getUsername());
+        Optional<User> optionalUser = userRepository.findById(user.getUserId());
         Optional<Consultation> optionalConsultation = consultRepository.findById(consultation.getId());
         if(!optionalUser.isPresent()){
             throw new UserNotFoundException("No user was found");
@@ -268,32 +272,50 @@ public class ConsultationServiceImpl implements ConsultationService {
             consultRepository.save(consultation);
             String clientMessage = "Your consultation has successfully been cancelled.Thank you for considering our services.";
             String adminMessage = "The following consultation has been cancelled: \n"+consultation;
-            TwilioSMS.sendSMS(from, clientMessage);
-            TwilioSMS.sendSMS("+3019384728", adminMessage);
+            twilioSMS.sendSMS(from, clientMessage);
+            twilioSMS.sendSMS("+3019384728", adminMessage);
     }
 
+    @Configuration
+    @ConfigurationProperties(prefix = "twilio")
+    public class TwilioProperties {
 
-public static class TwilioSMS {
-    private static final Properties properties;
+        private String accountsId;
+        private String authenticationToken;
+        private String fromNumber;
 
-        static {
-            properties = new Properties();
-            try (InputStream inputStream = TwilioSMS.class.getResourceAsStream("/db.properties")) {
-                properties.load(inputStream);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        public String getAccountsId() {
+            return accountsId;
         }
 
-    //Twilio account credentials
-        public static final String ACCOUNT_SID = properties.getProperty("accountsid");
-        public static final String AUTH_TOKEN = properties.getProperty("authenticationtoken");
-        public static final String FROM_NUMBER = properties.getProperty("fromnumber");
+        public void setAccountsId(String accountsId) {
+            this.accountsId = accountsId;
+        }
 
+        public String getAuthenticationToken() {
+            return authenticationToken;
+        }
 
-        public static void sendSMS(String to, String messageBody) {
-            Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
-            Message message = Message.creator(new PhoneNumber(to), new PhoneNumber(FROM_NUMBER), messageBody).create();
+        public void setAuthenticationToken(String authenticationToken) {
+            this.authenticationToken = authenticationToken;
+        }
+
+        public String getFromNumber() {
+            return fromNumber;
+        }
+
+        public void setFromNumber(String fromNumber) {
+            this.fromNumber = fromNumber;
+        }
+    }
+
+    public static class TwilioSMS {
+    @Autowired
+    private TwilioProperties twilioProperties;
+
+        public void sendSMS(String to, String messageBody) {
+            Twilio.init(twilioProperties.getAccountsId() , twilioProperties.getAuthenticationToken());
+            Message message = Message.creator(new PhoneNumber(to), new PhoneNumber(twilioProperties.getFromNumber()), messageBody).create();
             System.out.println("SMS sent: " + message.getSid());
     }
 }

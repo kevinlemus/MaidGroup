@@ -8,9 +8,9 @@ import java.time.LocalDate;
 public class Password {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private long id;
     private String hashedPassword;
-    @Column(name = "date_last_used", columnDefinition = "DATE")
+    @Column(name = "date_last_used")
     private LocalDate dateLastUsed;
 
     public Password(String hashedPassword, LocalDate dateLastUsed) {
@@ -24,11 +24,11 @@ public class Password {
 
     public Password(){}
 
-    public int getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

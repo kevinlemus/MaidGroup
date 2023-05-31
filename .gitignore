@@ -34,3 +34,4 @@ build/
 
 db.properties
 application.properties
+application.yaml

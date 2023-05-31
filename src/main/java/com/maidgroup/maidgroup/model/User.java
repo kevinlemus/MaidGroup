@@ -17,6 +17,8 @@ import java.util.List;
 public class User {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private long userId;
     @Column(name = "username", columnDefinition = "varchar(255) DEFAULT ''")
     private String username;
     @Column(name = "password", columnDefinition = "varchar(255)")
@@ -41,6 +43,14 @@ public class User {
     private List<Consultation> consultations = new ArrayList<>();
     private int age;
 
+
+    public long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(long userId) {
+        this.userId = userId;
+    }
 
     public Role getRole() {
         return role;

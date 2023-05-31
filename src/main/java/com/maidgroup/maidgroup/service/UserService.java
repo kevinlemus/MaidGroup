@@ -7,10 +7,10 @@ import java.util.List;
 
 public interface UserService {
 
-    boolean login(String username, String password, HttpServletRequest request);
+    User login(String username, String password);
     void logout(HttpServletRequest request);
     User register(User user);
-    User updateUser(User user, String username);
+    User updateUser(User user);
     List<User> getAllUsers(User user);
     User getByUsername(String username, User requester);
     void delete(String username, User requester);

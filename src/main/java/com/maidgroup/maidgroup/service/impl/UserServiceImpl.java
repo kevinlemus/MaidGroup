@@ -8,6 +8,7 @@ import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.exceptions.*;
+import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -32,14 +33,13 @@ public class UserServiceImpl implements UserService {
     PasswordRepository passwordRepository;
     @Autowired
     BCryptPasswordEncoder passwordEncoder;
+    JWTUtility jwtUtility;
 
     @Override
-    public boolean login(String username, String password, HttpServletRequest request) {
+    public User login(String username, String password) {
         User u = userRepository.findByUsername(username);
         if(u != null && passwordEncoder.matches(password, u.getPassword().toString())){
-            HttpSession session = request.getSession();
-            session.setAttribute("loggedInUser", u);
-            return true;
+            return u;
         }else{
             throw new InvalidCredentialsException("The provided credentials were incorrect.");
         }
@@ -123,7 +123,7 @@ public class UserServiceImpl implements UserService {
         validatePassword(password);
         String confirmPassword = user.getConfirmPassword().getHashedPassword();
 
-        if (confirmPassword == null || !password.equals(confirmPassword)) {
+        if (!password.equals(confirmPassword)) {
             throw new PasswordMismatchException("Passwords do not match.");
         }
         if(user.getDateOfBirth() == null){
@@ -148,18 +148,20 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User updateUser(User user, String username) {
-        Optional<User> optionalUser = userRepository.findById(username);
+    public User updateUser(User user) {
+        Optional<User> optionalUser = userRepository.findById(user.getUserId());
         if(optionalUser.isPresent()){
             User existingUser = optionalUser.get();
             boolean isAdmin = user.getRole().equals(Role.Admin);
-            boolean isUpdatingOwnInfo = user.getUsername().equals(existingUser.getUsername());
+            boolean isMatching = user.getUserId() == existingUser.getUserId();
 
-            if(!isAdmin && !isUpdatingOwnInfo){
-                throw new UnauthorizedException("You are not authorized to update this account.");
+            if(!isAdmin){
+                if(!isMatching) {
+                    throw new UnauthorizedException("You are not authorized to update this account.");
+                }
             }
             if(user.getUsername() != null && !user.getUsername().equals(existingUser.getUsername())){
-                if(userRepository.findById(user.getUsername()).orElseThrow()!=null){
+                if(userRepository.findByUsername(user.getUsername())!=null){
                     throw new UsernameAlreadyExists("Username is already taken.");
                 }
                 existingUser.setUsername(user.getUsername());
@@ -209,7 +211,7 @@ public class UserServiceImpl implements UserService {
 
             return userRepository.save(existingUser);
         }else{
-            throw new UserNotFoundException("No user with the username "+username+" was found.");
+            throw new UserNotFoundException("No user was found.");
         }
     }
 
@@ -227,7 +229,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User getByUsername(String username, User requester) {
-        Optional<User> user = userRepository.findById(username);
+        Optional<User> user = userRepository.findById(requester.getUserId());
         boolean isAdmin = requester.getRole().equals(Role.Admin);
         if(user.isPresent()){
             if (isAdmin) {
@@ -246,9 +248,7 @@ public class UserServiceImpl implements UserService {
     public void delete(String username, User requester) {
         User userToDelete = userRepository.findByUsername(username);
         boolean isAdmin = requester.getRole().equals(Role.Admin);
-        if (isAdmin) {
-            userRepository.delete(userToDelete);
-        } else if (requester.getUsername().equals(username)) {
+        if (isAdmin || requester.getUsername().equals(userToDelete.getUsername())) {
             userRepository.delete(userToDelete);
         } else {
             throw new UnauthorizedException("You are not authorized to delete this account.");
