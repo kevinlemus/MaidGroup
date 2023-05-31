@@ -6,6 +6,7 @@ import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.userinfo.Age;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
+import com.maidgroup.maidgroup.security.PasswordEmbeddable;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.exceptions.*;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
@@ -27,13 +28,18 @@ import java.util.regex.Pattern;
 @Service
 public class UserServiceImpl implements UserService {
 
-    @Autowired
     UserRepository userRepository;
-    @Autowired
     PasswordRepository passwordRepository;
-    @Autowired
     BCryptPasswordEncoder passwordEncoder;
     JWTUtility jwtUtility;
+
+    @Autowired
+    public UserServiceImpl(UserRepository userRepository, PasswordRepository passwordRepository, BCryptPasswordEncoder passwordEncoder, JWTUtility jwtUtility) {
+        this.userRepository = userRepository;
+        this.passwordRepository = passwordRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtility = jwtUtility;
+    }
 
     @Override
     public User login(String username, String password) {
@@ -135,7 +141,7 @@ public class UserServiceImpl implements UserService {
 
         Password hashedPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));
         hashedPassword = passwordRepository.save(hashedPassword);
-        user.setPassword(hashedPassword);
+        user.setPassword(new PasswordEmbeddable(hashedPassword.getHashedPassword(), hashedPassword.getDateLastUsed()));
         user.getPreviousPasswords().add(hashedPassword);
 
         userRepository.saveAndFlush(user);
@@ -177,12 +183,17 @@ public class UserServiceImpl implements UserService {
                 if(existingUser.getPreviousPasswords().stream().anyMatch(p -> passwordEncoder.matches(user.getPassword().toString(), String.valueOf(p)))){
                     throw new InvalidPasswordException("Password has already been used.");
                 }
-
-                Password oldPassword = existingUser.getPassword();//creating a way to change properties of our old password
-                oldPassword.setDateLastUsed(LocalDate.now());//we are setting the last date it was used before changing the password
-                Password newPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));//created a password instance with and set the hashed password in the constructor
-                existingUser.getPreviousPasswords().add(newPassword);//adding the new password to all passwords the user has used.
-                existingUser.setPassword(newPassword);//changing password to the new password
+                PasswordEmbeddable oldPassword = existingUser.getPassword();// get the old password from the existing user
+                Optional<Password> oldPasswordEntity = existingUser.getPreviousPasswords().stream() // find the corresponding Password object in the previousPasswords list
+                        .filter(password -> password.getHashedPassword().equals(oldPassword.getHashedPassword()))
+                        .findFirst();
+                oldPasswordEntity.ifPresent(password -> { // update the date last used of the old password
+                    password.setDateLastUsed(LocalDate.now());
+                });
+                Password newPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));// create a new Password object and save it to the database
+                newPassword = passwordRepository.save(newPassword);
+                existingUser.getPreviousPasswords().add(newPassword);// add the new Password object to the previousPasswords list
+                existingUser.setPassword(new PasswordEmbeddable(newPassword.getHashedPassword(), newPassword.getDateLastUsed()));// set the password field to a new PasswordEmbeddable object created from the new Password object
             }
             if(user.getFirstName() != null){
                 existingUser.setFirstName(user.getFirstName());

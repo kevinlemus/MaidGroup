@@ -25,12 +25,16 @@ import java.util.List;
 @RequestMapping("/user")
 @CrossOrigin
 public class UserController {
-    @Autowired
     UserService userService;
-    @Autowired
     UserRepository userRepository;
-    @Autowired
     JWTUtility jwtUtility;
+
+    @Autowired
+    public UserController(UserService userService, UserRepository userRepository, JWTUtility jwtUtility){
+        this.userService = userService;
+        this.userRepository = userRepository;
+        this.jwtUtility = jwtUtility;
+    }
 
     @PostMapping("/login")
     public @ResponseBody User login(@RequestBody LoginCreds loginCreds, HttpServletResponse response){

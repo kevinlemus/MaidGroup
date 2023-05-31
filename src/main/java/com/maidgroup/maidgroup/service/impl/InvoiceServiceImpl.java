@@ -12,8 +12,12 @@ import java.util.List;
 @Service
 public class InvoiceServiceImpl implements InvoiceService {
 
-    @Autowired
     InvoiceRepository invoiceRepository;
+
+    @Autowired
+    public InvoiceServiceImpl(InvoiceRepository invoiceRepository) {
+        this.invoiceRepository = invoiceRepository;
+    }
 
     @Override
     public Invoice createInvoice(Invoice invoice) {

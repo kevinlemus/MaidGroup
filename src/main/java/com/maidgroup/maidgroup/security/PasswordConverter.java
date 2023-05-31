@@ -15,4 +15,6 @@ public class PasswordConverter implements AttributeConverter<Password, String> {
     public Password convertToEntityAttribute(String passwordString) {
         return new Password(passwordString);
     }
+
+
 }

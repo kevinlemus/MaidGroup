@@ -26,14 +26,18 @@ import java.util.Optional;
 @CrossOrigin
 public class ConsultationController {
 
-    @Autowired
     ConsultationService consultService;
-    @Autowired
     ConsultationRepository consultRepository;
-    @Autowired
     UserService userService;
-    @Autowired
     UserRepository userRepository;
+
+    @Autowired
+    public ConsultationController(ConsultationService consultService, ConsultationRepository consultRepository, UserService userService, UserRepository userRepository) {
+        this.consultService = consultService;
+        this.consultRepository = consultRepository;
+        this.userService = userService;
+        this.userRepository = userRepository;
+    }
 
     @PostMapping("/create")
     public ResponseEntity<Consultation> createConsultation(@RequestBody Consultation consultation){

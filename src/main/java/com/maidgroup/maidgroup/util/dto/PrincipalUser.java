@@ -9,6 +9,7 @@ public class PrincipalUser {
     private String email;
     private String role;
 
+
     public PrincipalUser(long userId, String username, String firstName, String lastName, String email, String role) {
         this.userId = userId;
         this.username = username;

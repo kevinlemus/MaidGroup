@@ -4,6 +4,7 @@ import com.maidgroup.maidgroup.dao.PasswordRepository;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.security.Password;
+import com.maidgroup.maidgroup.security.PasswordEmbeddable;
 import com.maidgroup.maidgroup.service.impl.UserServiceImpl;
 import org.junit.Assert;
 import org.junit.Before;
@@ -37,7 +38,7 @@ public class UserServiceTestSuite {
     public void registerUser_returnsNewUser_givenValidUser(){
         ///AAA Arrange Act Assert
 
-        Password password = new Password("Missypfoo20!");
+        PasswordEmbeddable password = new PasswordEmbeddable("Missypfoo20!");
 
         //Arrange
         User newUser = new User();
@@ -60,7 +61,7 @@ public class UserServiceTestSuite {
     @Test
     public void loginUser_returnsSuccessfulLogin_givenExistingUser(){
 
-        Password password = new Password("Missypfoo20!");
+        PasswordEmbeddable password = new PasswordEmbeddable("Missypfoo20!");
         //Arrange
         User existingUser = new User();
         existingUser.setUsername("missypfoo");

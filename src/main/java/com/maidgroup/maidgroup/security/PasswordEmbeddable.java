@@ -1,38 +1,25 @@
 package com.maidgroup.maidgroup.security;
 
 import jakarta.persistence.*;
-import org.springframework.beans.factory.annotation.Autowired;
-
 import java.time.LocalDate;
 
-@Entity
-public class Password {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+@Embeddable
+public class PasswordEmbeddable {
+    @Column(insertable=false, updatable=false)
     private String hashedPassword;
-    @Column(name = "date_last_used")
+    @Column(insertable=false, updatable=false)
     private LocalDate dateLastUsed;
 
-    public Password(long id, String hashedPassword, LocalDate dateLastUsed) {
-        this.id = id;
+    public PasswordEmbeddable(String hashedPassword, LocalDate dateLastUsed) {
         this.hashedPassword = hashedPassword;
         this.dateLastUsed = dateLastUsed;
     }
 
-    public Password(String hashedPassword){
+    public PasswordEmbeddable(String hashedPassword){
         this.hashedPassword = hashedPassword;
     }
 
-    public Password(){}
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
+    public PasswordEmbeddable(){}
 
     public String getHashedPassword() {
         return hashedPassword;
@@ -53,11 +40,8 @@ public class Password {
     @Override
     public String toString() {
         return "Password{" +
-                "id=" + id +
                 ", hashedPassword='" + hashedPassword + '\'' +
                 ", dateLastUsed=" + dateLastUsed +
                 '}';
     }
-
-
 }

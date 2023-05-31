@@ -4,8 +4,11 @@ import com.maidgroup.maidgroup.model.userinfo.Gender;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.security.PasswordConverter;
+import com.maidgroup.maidgroup.security.PasswordEmbeddable;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
+import org.hibernate.type.SqlTypes;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
@@ -23,13 +26,14 @@ public class User {
     private String username;
     @Column(name = "password", columnDefinition = "varchar(255)")
     @Convert(converter = PasswordConverter.class, attributeName = "hashedPassword")
-    private Password password;
+    private PasswordEmbeddable password;
 
     @Column(name = "confirmPassword", columnDefinition = "varchar(255)")
     @Convert(converter = PasswordConverter.class, attributeName = "hashedPassword")
-    private Password confirmPassword;
+    private PasswordEmbeddable confirmPassword;
     //@ElementCollection
     @CollectionTable(name = "previous_passwords", joinColumns = @JoinColumn(name = "username"))
+    @JdbcTypeCode(SqlTypes.JSON)
     private List<Password> previousPasswords = new ArrayList<>();
     private String firstName;
     private String lastName;
@@ -43,6 +47,23 @@ public class User {
     private List<Consultation> consultations = new ArrayList<>();
     private int age;
 
+    public User(long userId, String username, PasswordEmbeddable password, PasswordEmbeddable confirmPassword, List<Password> previousPasswords, String firstName, String lastName, String email, Gender gender, LocalDate dateOfBirth, Role role, List<Consultation> consultations, int age) {
+        this.userId = userId;
+        this.username = username;
+        this.password = password;
+        this.confirmPassword = confirmPassword;
+        this.previousPasswords = previousPasswords;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.email = email;
+        this.gender = gender;
+        this.dateOfBirth = dateOfBirth;
+        this.role = role;
+        this.consultations = consultations;
+        this.age = age;
+    }
+
+    public User(){};
 
     public long getUserId() {
         return userId;
@@ -68,19 +89,19 @@ public class User {
         this.username = username;
     }
 
-    public Password getPassword() {
+    public PasswordEmbeddable getPassword() {
         return password;
     }
 
-    public void setPassword(Password password) {
+    public void setPassword(PasswordEmbeddable password) {
         this.password = password;
     }
 
-    public Password getConfirmPassword() {
+    public PasswordEmbeddable getConfirmPassword() {
         return confirmPassword;
     }
 
-    public void setConfirmPassword(Password confirmPassword) {
+    public void setConfirmPassword(PasswordEmbeddable confirmPassword) {
         this.confirmPassword = confirmPassword;
     }
 

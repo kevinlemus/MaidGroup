@@ -22,6 +22,18 @@ public class Invoice {
     private String phoneNumber;
     private double totalPrice;
 
+    public Invoice(int id, ArrayList<String> serviceName, ArrayList<Double> price, LocalDate date, String firstName, String lastName, String clientEmail, String phoneNumber, double totalPrice) {
+        this.id = id;
+        this.serviceName = serviceName;
+        this.price = price;
+        this.date = date;
+        this.firstName = firstName;
+        LastName = lastName;
+        this.clientEmail = clientEmail;
+        this.phoneNumber = phoneNumber;
+        this.totalPrice = totalPrice;
+    }
+
     public int getId() {
         return id;
     }

@@ -11,8 +11,11 @@ import java.util.ArrayList;
 
 public class CustomUserDetailsService implements UserDetailsService {
 
-    @Autowired
     UserRepository userRepository;
+
+    public CustomUserDetailsService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {

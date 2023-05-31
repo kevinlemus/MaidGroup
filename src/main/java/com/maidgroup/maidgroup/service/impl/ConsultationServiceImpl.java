@@ -31,12 +31,16 @@ import java.util.*;
 @Service
 public class ConsultationServiceImpl implements ConsultationService {
 
-    @Autowired
     UserRepository userRepository;
-    @Autowired
     ConsultationRepository consultRepository;
-
     TwilioSMS twilioSMS;
+
+    @Autowired
+    public ConsultationServiceImpl(UserRepository userRepository, ConsultationRepository consultRepository, TwilioSMS twilioSMS) {
+        this.userRepository = userRepository;
+        this.consultRepository = consultRepository;
+        this.twilioSMS = twilioSMS;
+    }
 
     @Override
     public Consultation create(Consultation consultation) {

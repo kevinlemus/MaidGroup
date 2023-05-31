@@ -27,6 +27,20 @@ public class Consultation {
     @JoinColumn(name = "user_username")
     private User user;
 
+    public Consultation(int id, String firstName, String lastName, String email, String phoneNumber, String message, LocalDate date, LocalTime time, PreferredContact preferredContact, ConsultationStatus status, User user) {
+        this.id = id;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+        this.message = message;
+        this.date = date;
+        this.time = time;
+        this.preferredContact = preferredContact;
+        this.status = status;
+        this.user = user;
+    }
+
     public int getId() {
         return id;
     }
