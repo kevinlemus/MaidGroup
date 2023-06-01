@@ -27,14 +27,13 @@ public class User {
     @Column(name = "password", columnDefinition = "varchar(255)")
     @Convert(converter = PasswordConverter.class, attributeName = "hashedPassword")
     private PasswordEmbeddable password;
-
     @Column(name = "confirmPassword", columnDefinition = "varchar(255)")
     @Convert(converter = PasswordConverter.class, attributeName = "hashedPassword")
     private PasswordEmbeddable confirmPassword;
     //@ElementCollection
-    @CollectionTable(name = "previous_passwords", joinColumns = @JoinColumn(name = "username"))
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<Password> previousPasswords = new ArrayList<>();
+    @ElementCollection
+    @CollectionTable(name = "previous_passwords", joinColumns = @JoinColumn(name = "user_id"))
+    private List<PasswordEmbeddable> previousPasswords = new ArrayList<>();
     private String firstName;
     private String lastName;
     private String email;
@@ -47,7 +46,7 @@ public class User {
     private List<Consultation> consultations = new ArrayList<>();
     private int age;
 
-    public User(long userId, String username, PasswordEmbeddable password, PasswordEmbeddable confirmPassword, List<Password> previousPasswords, String firstName, String lastName, String email, Gender gender, LocalDate dateOfBirth, Role role, List<Consultation> consultations, int age) {
+    public User(long userId, String username, PasswordEmbeddable password, PasswordEmbeddable confirmPassword, List<PasswordEmbeddable> previousPasswords, String firstName, String lastName, String email, Gender gender, LocalDate dateOfBirth, Role role, List<Consultation> consultations, int age) {
         this.userId = userId;
         this.username = username;
         this.password = password;
@@ -105,11 +104,11 @@ public class User {
         this.confirmPassword = confirmPassword;
     }
 
-    public List<Password> getPreviousPasswords() {
+    public List<PasswordEmbeddable> getPreviousPasswords() {
         return previousPasswords;
     }
 
-    public void setPreviousPasswords(List<Password> previousPasswords) {
+    public void setPreviousPasswords(List<PasswordEmbeddable> previousPasswords) {
         this.previousPasswords = previousPasswords;
     }
 

@@ -140,9 +140,10 @@ public class UserServiceImpl implements UserService {
         }
 
         Password hashedPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));
-        hashedPassword = passwordRepository.save(hashedPassword);
+        PasswordEmbeddable hashedEmbeddablePassword = new PasswordEmbeddable(hashedPassword.toString());
+        passwordRepository.save(hashedPassword);
         user.setPassword(new PasswordEmbeddable(hashedPassword.getHashedPassword(), hashedPassword.getDateLastUsed()));
-        user.getPreviousPasswords().add(hashedPassword);
+        user.getPreviousPasswords().add(hashedEmbeddablePassword);
 
         userRepository.saveAndFlush(user);
 
@@ -184,15 +185,16 @@ public class UserServiceImpl implements UserService {
                     throw new InvalidPasswordException("Password has already been used.");
                 }
                 PasswordEmbeddable oldPassword = existingUser.getPassword();// get the old password from the existing user
-                Optional<Password> oldPasswordEntity = existingUser.getPreviousPasswords().stream() // find the corresponding Password object in the previousPasswords list
+                Optional<PasswordEmbeddable> oldPasswordEntity = existingUser.getPreviousPasswords().stream() // find the corresponding Password object in the previousPasswords list
                         .filter(password -> password.getHashedPassword().equals(oldPassword.getHashedPassword()))
                         .findFirst();
                 oldPasswordEntity.ifPresent(password -> { // update the date last used of the old password
                     password.setDateLastUsed(LocalDate.now());
                 });
                 Password newPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));// create a new Password object and save it to the database
-                newPassword = passwordRepository.save(newPassword);
-                existingUser.getPreviousPasswords().add(newPassword);// add the new Password object to the previousPasswords list
+                PasswordEmbeddable newPwdEmbeddable = new PasswordEmbeddable(newPassword.toString());
+                passwordRepository.save(newPassword);
+                existingUser.getPreviousPasswords().add(newPwdEmbeddable);// add the new Password object to the previousPasswords list
                 existingUser.setPassword(new PasswordEmbeddable(newPassword.getHashedPassword(), newPassword.getDateLastUsed()));// set the password field to a new PasswordEmbeddable object created from the new Password object
             }
             if(user.getFirstName() != null){

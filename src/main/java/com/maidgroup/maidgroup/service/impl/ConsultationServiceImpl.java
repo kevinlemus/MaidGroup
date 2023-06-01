@@ -11,6 +11,7 @@ import com.maidgroup.maidgroup.model.consultationinfo.ConsultationStatus;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.service.ConsultationService;
 import com.maidgroup.maidgroup.service.exceptions.*;
+import com.maidgroup.maidgroup.util.twilio.TwilioSMS;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
@@ -20,6 +21,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -279,50 +281,6 @@ public class ConsultationServiceImpl implements ConsultationService {
             twilioSMS.sendSMS(from, clientMessage);
             twilioSMS.sendSMS("+3019384728", adminMessage);
     }
-
-    @Configuration
-    @ConfigurationProperties(prefix = "twilio")
-    public class TwilioProperties {
-
-        private String accountsId;
-        private String authenticationToken;
-        private String fromNumber;
-
-        public String getAccountsId() {
-            return accountsId;
-        }
-
-        public void setAccountsId(String accountsId) {
-            this.accountsId = accountsId;
-        }
-
-        public String getAuthenticationToken() {
-            return authenticationToken;
-        }
-
-        public void setAuthenticationToken(String authenticationToken) {
-            this.authenticationToken = authenticationToken;
-        }
-
-        public String getFromNumber() {
-            return fromNumber;
-        }
-
-        public void setFromNumber(String fromNumber) {
-            this.fromNumber = fromNumber;
-        }
-    }
-
-    public static class TwilioSMS {
-    @Autowired
-    private TwilioProperties twilioProperties;
-
-        public void sendSMS(String to, String messageBody) {
-            Twilio.init(twilioProperties.getAccountsId() , twilioProperties.getAuthenticationToken());
-            Message message = Message.creator(new PhoneNumber(to), new PhoneNumber(twilioProperties.getFromNumber()), messageBody).create();
-            System.out.println("SMS sent: " + message.getSid());
-    }
-}
 
 }
 

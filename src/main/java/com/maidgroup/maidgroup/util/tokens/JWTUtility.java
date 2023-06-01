@@ -24,10 +24,6 @@ public class JWTUtility {
     private static byte[] lazySaltyBytes;
     private JWTConfig jwtConfig;
 
-    public JWTUtility(String secret, JWTConfig jwtConfig) {
-        this.secret = secret;
-        this.jwtConfig = jwtConfig;
-    }
 
     @PostConstruct
     public void createLazySaltyBytes() {

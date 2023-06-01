@@ -37,7 +37,7 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public @ResponseBody User login(@RequestBody LoginCreds loginCreds, HttpServletResponse response){
+    public User login(@RequestBody LoginCreds loginCreds, HttpServletResponse response){
         User authUser = userService.login(loginCreds.getUsername(), loginCreds.getPassword());
         String token = jwtUtility.createToken(authUser);
         response.setHeader("Authorization", token);
