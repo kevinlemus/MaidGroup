@@ -18,6 +18,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import java.time.LocalDate;
 
 import static com.maidgroup.maidgroup.model.userinfo.Gender.Female;
+import static org.mockito.Mockito.*;
 
 public class UserServiceTestSuite {
     @InjectMocks
@@ -38,7 +39,7 @@ public class UserServiceTestSuite {
     public void registerUser_returnsNewUser_givenValidUser(){
         ///AAA Arrange Act Assert
 
-        PasswordEmbeddable password = new PasswordEmbeddable("Missypfoo20!");
+        Password password = new Password("Missypfoo20!");
 
         //Arrange
         User newUser = new User();
@@ -51,26 +52,44 @@ public class UserServiceTestSuite {
         newUser.setGender(Female);
         newUser.setDateOfBirth(LocalDate.of(2020, 9, 15));
 
+        // Create a JSON payload
+        String jsonPayload = "{"
+                + "\"username\":\"missypfoo\","
+                + "\"password\":\"Missypfoo20!\","
+                + "\"confirmPassword\":\"Missypfoo20!\","
+                + "\"firstName\":\"missy\","
+                + "\"lastName\":\"foo\","
+                + "\"email\":\"missyfoo@cats.com\","
+                + "\"gender\":\"Female\","
+                + "\"dateOfBirth\":\"2020-09-15\""
+                + "}";
+
         //Act
-        User user = sut.register(newUser);
+        when(userRepository.save(newUser)).thenReturn(newUser);
+        User user = sut.register(newUser, jsonPayload);
 
         //Assert
+        verify(userRepository, times(1)).save(newUser);
         Assert.assertNotNull(user); //If user is not registered a null object is returned.
     }
 
     @Test
-    public void loginUser_returnsSuccessfulLogin_givenExistingUser(){
-
-        PasswordEmbeddable password = new PasswordEmbeddable("Missypfoo20!");
-        //Arrange
+    public void loginUser_returnsSuccessfulLogin_givenExistingUser() {
+        // Arrange
+        String username = "missypfoo";
+        String rawPassword = "Missypfoo20!";
+        String hashedPassword = passwordEncoder.encode(rawPassword);
         User existingUser = new User();
-        existingUser.setUsername("missypfoo");
-        existingUser.setPassword(password);
+        existingUser.setUsername(username);
+        existingUser.setPassword(new Password(hashedPassword));
 
-        //Act
-        User user = sut.login(existingUser.getUsername(), existingUser.getPassword().toString());
+        // Act
+        when(userRepository.findByUsername(username)).thenReturn(existingUser);
+        when(passwordEncoder.matches(rawPassword, hashedPassword)).thenReturn(true);
+        User user = sut.login(username, rawPassword);
 
-        //Assert
+        // Assert
+        verify(userRepository).findByUsername(username);
         Assert.assertNotNull(user);
     }
 }

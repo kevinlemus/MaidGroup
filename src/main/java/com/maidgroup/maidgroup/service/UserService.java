@@ -9,7 +9,7 @@ public interface UserService {
 
     User login(String username, String password);
     void logout(HttpServletRequest request);
-    User register(User user);
+    User register(User user, String jsonPayload);
     User updateUser(User user);
     List<User> getAllUsers(User user);
     User getByUsername(String username, User requester);

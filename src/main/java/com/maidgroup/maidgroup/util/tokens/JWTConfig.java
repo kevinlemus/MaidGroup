@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "jwt")
 public class JWTConfig {
     private Long expirationTime;
-
     public Long getExpirationTime() {
         return expirationTime;
     }

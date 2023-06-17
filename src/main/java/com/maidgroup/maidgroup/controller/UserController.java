@@ -1,5 +1,8 @@
 package com.maidgroup.maidgroup.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.service.UserService;
@@ -12,28 +15,34 @@ import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import io.jsonwebtoken.io.IOException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/user")
 @CrossOrigin
+@Log4j2
 public class UserController {
     UserService userService;
     UserRepository userRepository;
     JWTUtility jwtUtility;
+    BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
-    public UserController(UserService userService, UserRepository userRepository, JWTUtility jwtUtility){
+    public UserController(UserService userService, UserRepository userRepository, JWTUtility jwtUtility, BCryptPasswordEncoder passwordEncoder){
         this.userService = userService;
         this.userRepository = userRepository;
         this.jwtUtility = jwtUtility;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/login")
@@ -46,8 +55,8 @@ public class UserController {
 
     @ExceptionHandler({InvalidCredentialsException.class})
     @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public @ResponseBody String exceptionInvalidUserInput(InvalidCredentialsException ex){
-        return ex.getMessage();
+    public @ResponseBody String exceptionInvalidUserInput(InvalidCredentialsException e){
+        return e.getMessage();
     }
 
   /*  public ResponseEntity<User> login(@RequestBody User loginRequest, HttpServletRequest request){
@@ -76,8 +85,22 @@ public class UserController {
 
     @PostMapping("/registerUser")
     @PreAuthorize("permitAll")
-    public ResponseEntity<User> register(@RequestBody User user){
-        return new ResponseEntity<User>(userService.register(user), HttpStatus.CREATED);
+    public ResponseEntity<?> register(@RequestBody String jsonPayload){
+        try {
+            // Parse the JSON payload to create a User object
+            ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.registerModule(new JavaTimeModule());
+            User user = objectMapper.readValue(jsonPayload, User.class);
+
+            // Call the register() method and pass the User object and JSON payload
+            User registeredUser = userService.register(user, jsonPayload);
+
+            return new ResponseEntity<User>(registeredUser, HttpStatus.CREATED);
+        }catch (JsonProcessingException e){
+        // Handle the exception
+            log.error("Error parsing JSON payload", e);
+            return new ResponseEntity<String>("Error parsing JSON payload", HttpStatus.BAD_REQUEST);
+    }
     }
 
     @PostMapping("/{username}")

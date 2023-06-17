@@ -6,16 +6,16 @@ import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.security.PasswordConverter;
 import com.maidgroup.maidgroup.security.PasswordEmbeddable;
 import jakarta.persistence.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.Type;
-import org.hibernate.type.SqlTypes;
-import org.springframework.context.annotation.Bean;
-import org.springframework.stereotype.Component;
-
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
 @Entity
 public class User {
 
@@ -24,16 +24,18 @@ public class User {
     private long userId;
     @Column(name = "username", columnDefinition = "varchar(255) DEFAULT ''")
     private String username;
-    @Column(name = "password", columnDefinition = "varchar(255)")
-    @Convert(converter = PasswordConverter.class, attributeName = "hashedPassword")
-    private PasswordEmbeddable password;
-    @Column(name = "confirmPassword", columnDefinition = "varchar(255)")
-    @Convert(converter = PasswordConverter.class, attributeName = "hashedPassword")
-    private PasswordEmbeddable confirmPassword;
+    @Embedded
+    @Column(name = "hashed_password", columnDefinition = "varchar(255)")
+    private Password password;
+    @Transient
+    private Password confirmPassword;
+    @Transient
+    private String rawPassword;
+
     //@ElementCollection
     @ElementCollection
     @CollectionTable(name = "previous_passwords", joinColumns = @JoinColumn(name = "user_id"))
-    private List<PasswordEmbeddable> previousPasswords = new ArrayList<>();
+    private List<Password> previousPasswords = new ArrayList<>();
     private String firstName;
     private String lastName;
     private String email;
@@ -46,125 +48,4 @@ public class User {
     private List<Consultation> consultations = new ArrayList<>();
     private int age;
 
-    public User(long userId, String username, PasswordEmbeddable password, PasswordEmbeddable confirmPassword, List<PasswordEmbeddable> previousPasswords, String firstName, String lastName, String email, Gender gender, LocalDate dateOfBirth, Role role, List<Consultation> consultations, int age) {
-        this.userId = userId;
-        this.username = username;
-        this.password = password;
-        this.confirmPassword = confirmPassword;
-        this.previousPasswords = previousPasswords;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.email = email;
-        this.gender = gender;
-        this.dateOfBirth = dateOfBirth;
-        this.role = role;
-        this.consultations = consultations;
-        this.age = age;
-    }
-
-    public User(){};
-
-    public long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(long userId) {
-        this.userId = userId;
-    }
-
-    public Role getRole() {
-        return role;
-    }
-
-    public void setRole(Role role) {
-        this.role = role;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public PasswordEmbeddable getPassword() {
-        return password;
-    }
-
-    public void setPassword(PasswordEmbeddable password) {
-        this.password = password;
-    }
-
-    public PasswordEmbeddable getConfirmPassword() {
-        return confirmPassword;
-    }
-
-    public void setConfirmPassword(PasswordEmbeddable confirmPassword) {
-        this.confirmPassword = confirmPassword;
-    }
-
-    public List<PasswordEmbeddable> getPreviousPasswords() {
-        return previousPasswords;
-    }
-
-    public void setPreviousPasswords(List<PasswordEmbeddable> previousPasswords) {
-        this.previousPasswords = previousPasswords;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public Gender getGender() {
-        return gender;
-    }
-
-    public void setGender(Gender gender) {
-        this.gender = gender;
-    }
-
-    public LocalDate getDateOfBirth() {
-        return dateOfBirth;
-    }
-
-    public void setDateOfBirth(LocalDate dateOfBirth) {
-        this.dateOfBirth = dateOfBirth;
-    }
-
-    public List<Consultation> getConsultations() {
-        return consultations;
-    }
-
-    public void setConsultations(List<Consultation> consultations) {
-        this.consultations = consultations;
-    }
-
-    public int getAge() {
-        return age;
-    }
-
-    public void setAge(int age) {
-        this.age = age;
-    }
 }

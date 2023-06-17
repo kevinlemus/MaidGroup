@@ -6,7 +6,10 @@ import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
 import com.maidgroup.maidgroup.util.dto.PrincipalUser;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.IOException;
+import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -16,6 +19,8 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.Optional;
 
+@AllArgsConstructor
+@NoArgsConstructor
 @Component
 public class JWTUtility {
 
@@ -24,6 +29,10 @@ public class JWTUtility {
     private static byte[] lazySaltyBytes;
     private JWTConfig jwtConfig;
 
+    @Autowired
+    public JWTUtility(JWTConfig jwtConfig) {
+        this.jwtConfig = jwtConfig;
+    }
 
     @PostConstruct
     public void createLazySaltyBytes() {
@@ -43,8 +52,7 @@ public class JWTUtility {
                 .claim("role", user.getRole())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis()+ jwtConfig.getExpirationTime()))//seconds*minutes*1000*hours
-                .signWith(new SecretKeySpec(lazySaltyBytes, SignatureAlgorithm.RS256.getJcaName()));
-
+                .signWith(Keys.hmacShaKeyFor(lazySaltyBytes), SignatureAlgorithm.HS256);
         return tokenBuilder.compact();
     }
 

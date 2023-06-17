@@ -1,5 +1,9 @@
 package com.maidgroup.maidgroup.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maidgroup.maidgroup.dao.PasswordRepository;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
@@ -13,7 +17,13 @@ import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.validator.routines.EmailValidator;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,26 +35,38 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.aspectj.bridge.MessageUtil.fail;
+
+@Log4j2
+@NoArgsConstructor
+@Data
 @Service
 public class UserServiceImpl implements UserService {
 
     UserRepository userRepository;
-    PasswordRepository passwordRepository;
     BCryptPasswordEncoder passwordEncoder;
     JWTUtility jwtUtility;
+    //private Logger logger = LogManager.getLogger();
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository, PasswordRepository passwordRepository, BCryptPasswordEncoder passwordEncoder, JWTUtility jwtUtility) {
+    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, JWTUtility jwtUtility) {
         this.userRepository = userRepository;
-        this.passwordRepository = passwordRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtility = jwtUtility;
     }
 
     @Override
     public User login(String username, String password) {
-        User u = userRepository.findByUsername(username);
-        if(u != null && passwordEncoder.matches(password, u.getPassword().toString())){
+        User u = userRepository.findByUsername(username)/*.orElseThrow(UserNotFoundException::new)*/;
+        log.debug("Password being encoded: {}", password);
+        log.debug("Encoded password: {}", u.getPassword().getHashedPassword());
+        log.debug("Passed in password after being encoded: {}", passwordEncoder.encode(password));
+
+
+        boolean matches = passwordEncoder.matches(password, u.getPassword().getHashedPassword());
+        log.debug("passwordEncoder.matches() result: {}", matches);
+
+        if(u != null && passwordEncoder.matches(password, u.getPassword().getHashedPassword())){
             return u;
         }else{
             throw new InvalidCredentialsException("The provided credentials were incorrect.");
@@ -59,93 +81,63 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    private void validatePassword(String password) {
-        String regex = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&+=])(?=\\S+$).{8,}$";
-        String[] requirements = {
-                "At least 8 characters long",
-                "Contains at least one digit",
-                "Contains at least one lowercase letter",
-                "Contains at least one uppercase letter",
-                "Contains at least one special character (!@#$%^&+=)",
-                "Cannot have empty spaces"
-        };
-        List<String> missingRequirements = new ArrayList<>();
-
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(password);
-        if (!matcher.find()) {
-            for (int i = 0; i < requirements.length; i++) {
-                if (!password.matches(".*[" + getRegexForRequirement(i) + "]")) {
-                    missingRequirements.add(requirements[i]);
-                }
-            }
-            throw new InvalidPasswordException("Password does not meet the following requirements: " + String.join(", ", missingRequirements));
-        }
-    }
-
-    private String getRegexForRequirement(int index) {
-        switch (index) {
-            case 0:
-                return ".";
-            case 1:
-                return "0-9";
-            case 2:
-                return "a-z";
-            case 3:
-                return "A-Z";
-            case 4:
-                return "!@#$%^&+=";
-            case 5:
-                return " ";
-            default:
-                return "";
-        }
-    }
     @Override
-    public User register(User user) {
-        String username = user.getUsername();
-        User u = userRepository.findByUsername(username);
-        if(u!=null) {
-            throw new RuntimeException("Username is already taken");
-        }
-        if(StringUtils.isEmpty(user.getUsername())){
-            throw new RuntimeException("Username must not be empty");
-        }
-        if(user.getFirstName().isEmpty()){
-            throw new RuntimeException("First name cannot be empty");
-        }
-        if(user.getLastName().isEmpty()){
-            throw new RuntimeException("Last name cannot be empty");
-        }
-        EmailValidator emailValidator = EmailValidator.getInstance();
-        if (!emailValidator.isValid(user.getEmail())) {
-            throw new RuntimeException("Invalid email address");
-        }
-        if(user.getGender() == null){
-            throw new RuntimeException("Must select a gender option");
+    public User register(User user, String jsonPayload) {
+        try {
+            log.debug("JSON payload: {}", jsonPayload);
+            String username = user.getUsername();
+            User u = userRepository.findByUsername(username);
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode jsonNode = objectMapper.readTree(jsonPayload);
+            String rawPassword = jsonNode.get("password").asText();
+            user.setRawPassword(rawPassword);
+
+            if (u != null) {
+                throw new RuntimeException("Username is already taken");
+            }
+            if (StringUtils.isEmpty(user.getUsername())) {
+                throw new RuntimeException("Username must not be empty");
+            }
+            if (user.getFirstName().isEmpty()) {
+                throw new RuntimeException("First name cannot be empty");
+            }
+            if (user.getLastName().isEmpty()) {
+                throw new RuntimeException("Last name cannot be empty");
+            }
+            EmailValidator emailValidator = EmailValidator.getInstance();
+            if (!emailValidator.isValid(user.getEmail())) {
+                throw new RuntimeException("Invalid email address");
+            }
+            if (user.getGender() == null) {
+                throw new RuntimeException("Must select a gender option");
+            }
+
+            String password = user.getPassword().getHashedPassword();
+            validatePassword(password);
+            String confirmPassword = user.getConfirmPassword().getHashedPassword();
+
+            if (!password.equals(confirmPassword)) {
+                throw new PasswordMismatchException("Passwords do not match.");
+            }
+            if (user.getDateOfBirth() == null) {
+                throw new RuntimeException("Must enter your date of birth");
+            }
+            if (user.getDateOfBirth() != null && user.getDateOfBirth().isAfter(LocalDate.now())) {
+                throw new RuntimeException("Date of birth cannot be in the future.");
+            }
+
+            String hashedPassword = passwordEncoder.encode(user.getRawPassword());
+            log.debug("Hashed password: {}", hashedPassword);
+            Password hashedEmbeddablePassword = new Password(hashedPassword);
+            user.setPassword(hashedEmbeddablePassword);
+            user.getPreviousPasswords().add(hashedEmbeddablePassword);
+
+        }catch (JsonProcessingException e) {
+            throw new RuntimeException("Error parsing JSON payload");
         }
 
-        String password = user.getPassword().getHashedPassword();
-        validatePassword(password);
-        String confirmPassword = user.getConfirmPassword().getHashedPassword();
-
-        if (!password.equals(confirmPassword)) {
-            throw new PasswordMismatchException("Passwords do not match.");
-        }
-        if(user.getDateOfBirth() == null){
-            throw new RuntimeException("Must enter your date of birth");
-        }
-        if(user.getDateOfBirth() != null && user.getDateOfBirth().isAfter(LocalDate.now())){
-            throw new RuntimeException("Date of birth cannot be in the future.");
-        }
-
-        Password hashedPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));
-        PasswordEmbeddable hashedEmbeddablePassword = new PasswordEmbeddable(hashedPassword.toString());
-        passwordRepository.save(hashedPassword);
-        user.setPassword(new PasswordEmbeddable(hashedPassword.getHashedPassword(), hashedPassword.getDateLastUsed()));
-        user.getPreviousPasswords().add(hashedEmbeddablePassword);
-
-        userRepository.saveAndFlush(user);
+        userRepository.save(user);
 
         Age age = new Age();
         user.setAge(age.getAge(user.getDateOfBirth()));
@@ -184,18 +176,20 @@ public class UserServiceImpl implements UserService {
                 if(existingUser.getPreviousPasswords().stream().anyMatch(p -> passwordEncoder.matches(user.getPassword().toString(), String.valueOf(p)))){
                     throw new InvalidPasswordException("Password has already been used.");
                 }
-                PasswordEmbeddable oldPassword = existingUser.getPassword();// get the old password from the existing user
-                Optional<PasswordEmbeddable> oldPasswordEntity = existingUser.getPreviousPasswords().stream() // find the corresponding Password object in the previousPasswords list
+                Password oldPassword = existingUser.getPassword();// get the old password from the existing user
+                Optional<Password> oldPasswordEntity = existingUser.getPreviousPasswords().stream() // find the corresponding Password object in the previousPasswords list
                         .filter(password -> password.getHashedPassword().equals(oldPassword.getHashedPassword()))
                         .findFirst();
                 oldPasswordEntity.ifPresent(password -> { // update the date last used of the old password
                     password.setDateLastUsed(LocalDate.now());
                 });
                 Password newPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));// create a new Password object and save it to the database
-                PasswordEmbeddable newPwdEmbeddable = new PasswordEmbeddable(newPassword.toString());
-                passwordRepository.save(newPassword);
+                Password newPwdEmbeddable = new Password(newPassword.toString());
                 existingUser.getPreviousPasswords().add(newPwdEmbeddable);// add the new Password object to the previousPasswords list
-                existingUser.setPassword(new PasswordEmbeddable(newPassword.getHashedPassword(), newPassword.getDateLastUsed()));// set the password field to a new PasswordEmbeddable object created from the new Password object
+                existingUser.setPassword(new Password(newPassword.getHashedPassword(), newPassword.getDateLastUsed()));// set the password field to a new PasswordEmbeddable object created from the new Password object
+
+                userRepository.save(existingUser);
+
             }
             if(user.getFirstName() != null){
                 existingUser.setFirstName(user.getFirstName());
@@ -265,6 +259,49 @@ public class UserServiceImpl implements UserService {
             userRepository.delete(userToDelete);
         } else {
             throw new UnauthorizedException("You are not authorized to delete this account.");
+        }
+    }
+
+    private void validatePassword(String password) {
+        String regex = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&+=])(?=\\S+$).{8,}$";
+        String[] requirements = {
+                "At least 8 characters long",
+                "Contains at least one digit",
+                "Contains at least one lowercase letter",
+                "Contains at least one uppercase letter",
+                "Contains at least one special character (!@#$%^&+=)",
+                "Cannot have empty spaces"
+        };
+        List<String> missingRequirements = new ArrayList<>();
+
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(password);
+        if (!matcher.find()) {
+            for (int i = 0; i < requirements.length; i++) {
+                if (!password.matches(".*[" + getRegexForRequirement(i) + "]")) {
+                    missingRequirements.add(requirements[i]);
+                }
+            }
+            throw new InvalidPasswordException("Password does not meet the following requirements: " + String.join(", ", missingRequirements));
+        }
+    }
+
+    private String getRegexForRequirement(int index) {
+        switch (index) {
+            case 0:
+                return ".";
+            case 1:
+                return "0-9";
+            case 2:
+                return "a-z";
+            case 3:
+                return "A-Z";
+            case 4:
+                return "!@#$%^&+=";
+            case 5:
+                return " ";
+            default:
+                return "";
         }
     }
 }
