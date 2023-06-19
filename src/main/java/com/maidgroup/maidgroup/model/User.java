@@ -5,6 +5,7 @@ import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.security.PasswordConverter;
 import com.maidgroup.maidgroup.security.PasswordEmbeddable;
+import com.maidgroup.maidgroup.util.dto.Requests.UserRequest;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -31,8 +32,6 @@ public class User {
     private Password confirmPassword;
     @Transient
     private String rawPassword;
-
-    //@ElementCollection
     @ElementCollection
     @CollectionTable(name = "previous_passwords", joinColumns = @JoinColumn(name = "user_id"))
     private List<Password> previousPasswords = new ArrayList<>();

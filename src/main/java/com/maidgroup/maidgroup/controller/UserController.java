@@ -5,12 +5,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
+import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.exceptions.InvalidCredentialsException;
 import com.maidgroup.maidgroup.service.exceptions.InvalidTokenException;
 import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
 import com.maidgroup.maidgroup.service.exceptions.UserNotFoundException;
 import com.maidgroup.maidgroup.util.dto.LoginCreds;
+import com.maidgroup.maidgroup.util.dto.Requests.UserRequest;
+import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import io.jsonwebtoken.io.IOException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,8 +27,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/user")
@@ -45,12 +50,45 @@ public class UserController {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @PostMapping("/registerUser")
+    @PreAuthorize("permitAll")
+    public ResponseEntity<UserResponse> register(@RequestBody UserRequest userRequest) {
+        // Create a User object from the UserRequest object
+        User user = new User();
+        user.setUsername(userRequest.getUsername());
+        user.setPassword(new Password(userRequest.getPassword()));
+        user.setRawPassword(userRequest.getPassword());
+        user.setConfirmPassword(new Password(userRequest.getConfirmPassword()));
+        user.setFirstName(userRequest.getFirstName());
+        user.setLastName(userRequest.getLastName());
+        user.setEmail(userRequest.getEmail());
+        user.setGender(userRequest.getGender());
+        user.setDateOfBirth(userRequest.getDateOfBirth());
+        user.setRole(userRequest.getRole());
+
+        // Call the register() method and pass the User object
+        User registeredUser = userService.register(user);
+
+        // Create a UserResponse object from the registeredUser object
+        UserResponse userResponse = new UserResponse(registeredUser);
+
+        return new ResponseEntity<UserResponse>(userResponse, HttpStatus.CREATED);
+    }
+
+
+    @ExceptionHandler({JsonProcessingException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String exceptionInvalidJsonProcessing(JsonProcessingException e){
+        return e.getMessage();
+    }
     @PostMapping("/login")
-    public User login(@RequestBody LoginCreds loginCreds, HttpServletResponse response){
+    public UserResponse login(@RequestBody LoginCreds loginCreds, HttpServletResponse response){
         User authUser = userService.login(loginCreds.getUsername(), loginCreds.getPassword());
+        UserResponse userResponse = new UserResponse(authUser);
         String token = jwtUtility.createToken(authUser);
         response.setHeader("Authorization", token);
-        return authUser;
+
+        return userResponse;
     }
 
     @ExceptionHandler({InvalidCredentialsException.class})
@@ -83,26 +121,6 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
-    @PostMapping("/registerUser")
-    @PreAuthorize("permitAll")
-    public ResponseEntity<?> register(@RequestBody String jsonPayload){
-        try {
-            // Parse the JSON payload to create a User object
-            ObjectMapper objectMapper = new ObjectMapper();
-            objectMapper.registerModule(new JavaTimeModule());
-            User user = objectMapper.readValue(jsonPayload, User.class);
-
-            // Call the register() method and pass the User object and JSON payload
-            User registeredUser = userService.register(user, jsonPayload);
-
-            return new ResponseEntity<User>(registeredUser, HttpStatus.CREATED);
-        }catch (JsonProcessingException e){
-        // Handle the exception
-            log.error("Error parsing JSON payload", e);
-            return new ResponseEntity<String>("Error parsing JSON payload", HttpStatus.BAD_REQUEST);
-    }
-    }
-
     @PostMapping("/{username}")
     public ResponseEntity<String> delete(@PathVariable("username") String username, @RequestBody User requester) {
         try {
@@ -127,9 +145,10 @@ public class UserController {
     }
 
     @GetMapping("/getAllUsers")
-    public @ResponseBody List<User> getAllUsers(Principal principal){
+    public @ResponseBody List<UserResponse> getAllUsers(Principal principal){
         User authUser = userRepository.findByUsername(principal.getName());
-        return userService.getAllUsers(authUser);
+        List<User> allUsers = userService.getAllUsers(authUser);
+        return allUsers.stream().map(UserResponse::new).collect(Collectors.toList());
     }
     /*
     public ResponseEntity<List<User>> getAllUsers(@RequestBody User user){

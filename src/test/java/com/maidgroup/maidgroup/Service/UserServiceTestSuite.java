@@ -17,7 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.time.LocalDate;
 
-import static com.maidgroup.maidgroup.model.userinfo.Gender.Female;
+import static com.maidgroup.maidgroup.model.userinfo.Gender.FEMALE;
 import static org.mockito.Mockito.*;
 
 public class UserServiceTestSuite {
@@ -49,24 +49,12 @@ public class UserServiceTestSuite {
         newUser.setFirstName("missy");
         newUser.setLastName("foo");
         newUser.setEmail("missyfoo@cats.com");
-        newUser.setGender(Female);
+        newUser.setGender(FEMALE);
         newUser.setDateOfBirth(LocalDate.of(2020, 9, 15));
-
-        // Create a JSON payload
-        String jsonPayload = "{"
-                + "\"username\":\"missypfoo\","
-                + "\"password\":\"Missypfoo20!\","
-                + "\"confirmPassword\":\"Missypfoo20!\","
-                + "\"firstName\":\"missy\","
-                + "\"lastName\":\"foo\","
-                + "\"email\":\"missyfoo@cats.com\","
-                + "\"gender\":\"Female\","
-                + "\"dateOfBirth\":\"2020-09-15\""
-                + "}";
 
         //Act
         when(userRepository.save(newUser)).thenReturn(newUser);
-        User user = sut.register(newUser, jsonPayload);
+        User user = sut.register(newUser);
 
         //Assert
         verify(userRepository, times(1)).save(newUser);

@@ -104,7 +104,7 @@ public class ConsultationServiceImpl implements ConsultationService {
             User retrievedUser = userOptional.get();
             Consultation retrievedConsult = consultOptional.get();
 
-            if (retrievedUser.getUsername().equals(consultation.getUser().getUsername()) || retrievedUser.getRole() == Role.Admin) {
+            if (retrievedUser.getUsername().equals(consultation.getUser().getUsername()) || retrievedUser.getRole() == Role.ADMIN) {
                 consultRepository.delete(retrievedConsult);
             }
         }
@@ -115,7 +115,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         Optional<User> optionalUser = userRepository.findById(user.getUserId());
         List<Consultation> allConsultations = consultRepository.findAll();
         User retrievedUser = optionalUser.get();
-        if(!retrievedUser.getRole().equals(Role.Admin)){
+        if(!retrievedUser.getRole().equals(Role.ADMIN)){
             throw new UnauthorizedException("You are not authorized to view all consultations.");
         }
         if(allConsultations.isEmpty()) {
@@ -137,7 +137,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         List<Consultation> retrievedConsultations = optionalConsultation.get();
         User retrievedUser = optionalUser.get();
 
-        if(retrievedUser.getRole()!=Role.Admin) {
+        if(retrievedUser.getRole()!=Role.ADMIN) {
             List<Consultation> userConsultations = new ArrayList<>();
             for (Consultation c : retrievedConsultations) {
                 if (c.getUser().getUsername().equals(retrievedUser.getUsername())) {
@@ -166,7 +166,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         Consultation retrievedConsultation = optionalConsultation.get();
         User retrievedUser = optionalUser.get();
 
-        if (!retrievedUser.getUsername().equals(retrievedConsultation.getUser().getUsername()) || retrievedUser.getRole()!=Role.Admin){
+        if (!retrievedUser.getUsername().equals(retrievedConsultation.getUser().getUsername()) || retrievedUser.getRole()!=Role.ADMIN){
             throw new UnauthorizedException("You are not authorized to view this consultation.");
         }
         return retrievedConsultation;
@@ -186,7 +186,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         User retrievedUser = optionalUser.get();
         List<Consultation> retrievedConsultations = optionalConsultations.get();
 
-        if(!retrievedUser.getRole().equals(Role.Admin)){
+        if(!retrievedUser.getRole().equals(Role.ADMIN)){
             List<Consultation> userConsultations = new ArrayList<>();
             for(Consultation c : retrievedConsultations){
                 if(c.getUser().getUsername().equals(retrievedUser.getUsername())){

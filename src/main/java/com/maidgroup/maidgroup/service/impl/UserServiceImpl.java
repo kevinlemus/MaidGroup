@@ -62,7 +62,6 @@ public class UserServiceImpl implements UserService {
         log.debug("Encoded password: {}", u.getPassword().getHashedPassword());
         log.debug("Passed in password after being encoded: {}", passwordEncoder.encode(password));
 
-
         boolean matches = passwordEncoder.matches(password, u.getPassword().getHashedPassword());
         log.debug("passwordEncoder.matches() result: {}", matches);
 
@@ -82,65 +81,54 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User register(User user, String jsonPayload) {
-        try {
-            log.debug("JSON payload: {}", jsonPayload);
-            String username = user.getUsername();
-            User u = userRepository.findByUsername(username);
+    public User register(User user) {
+        String username = user.getUsername();
+        User u = userRepository.findByUsername(username);
 
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode jsonNode = objectMapper.readTree(jsonPayload);
-            String rawPassword = jsonNode.get("password").asText();
-            user.setRawPassword(rawPassword);
-
-            if (u != null) {
-                throw new RuntimeException("Username is already taken");
-            }
-            if (StringUtils.isEmpty(user.getUsername())) {
-                throw new RuntimeException("Username must not be empty");
-            }
-            if (user.getFirstName().isEmpty()) {
-                throw new RuntimeException("First name cannot be empty");
-            }
-            if (user.getLastName().isEmpty()) {
-                throw new RuntimeException("Last name cannot be empty");
-            }
-            EmailValidator emailValidator = EmailValidator.getInstance();
-            if (!emailValidator.isValid(user.getEmail())) {
-                throw new RuntimeException("Invalid email address");
-            }
-            if (user.getGender() == null) {
-                throw new RuntimeException("Must select a gender option");
-            }
-
-            String password = user.getPassword().getHashedPassword();
-            validatePassword(password);
-            String confirmPassword = user.getConfirmPassword().getHashedPassword();
-
-            if (!password.equals(confirmPassword)) {
-                throw new PasswordMismatchException("Passwords do not match.");
-            }
-            if (user.getDateOfBirth() == null) {
-                throw new RuntimeException("Must enter your date of birth");
-            }
-            if (user.getDateOfBirth() != null && user.getDateOfBirth().isAfter(LocalDate.now())) {
-                throw new RuntimeException("Date of birth cannot be in the future.");
-            }
-
-            String hashedPassword = passwordEncoder.encode(user.getRawPassword());
-            log.debug("Hashed password: {}", hashedPassword);
-            Password hashedEmbeddablePassword = new Password(hashedPassword);
-            user.setPassword(hashedEmbeddablePassword);
-            user.getPreviousPasswords().add(hashedEmbeddablePassword);
-
-        }catch (JsonProcessingException e) {
-            throw new RuntimeException("Error parsing JSON payload");
+        if (u != null) {
+            throw new RuntimeException("Username is already taken");
+        }
+        if (StringUtils.isEmpty(user.getUsername())) {
+            throw new RuntimeException("Username must not be empty");
+        }
+        if (user.getFirstName().isEmpty()) {
+            throw new RuntimeException("First name cannot be empty");
+        }
+        if (user.getLastName().isEmpty()) {
+            throw new RuntimeException("Last name cannot be empty");
+        }
+        EmailValidator emailValidator = EmailValidator.getInstance();
+        if (!emailValidator.isValid(user.getEmail())) {
+            throw new RuntimeException("Invalid email address");
+        }
+        if (user.getGender() == null) {
+            throw new RuntimeException("Must select a gender option");
         }
 
-        userRepository.save(user);
+        String rawPassword = user.getRawPassword();
+        validatePassword(rawPassword);
+        String confirmPassword = user.getConfirmPassword().getHashedPassword();
+
+        if (!rawPassword.equals(confirmPassword)) {
+            throw new PasswordMismatchException("Passwords do not match.");
+        }
+        if (user.getDateOfBirth() == null) {
+            throw new RuntimeException("Must enter your date of birth");
+        }
+        if (user.getDateOfBirth() != null && user.getDateOfBirth().isAfter(LocalDate.now())) {
+            throw new RuntimeException("Date of birth cannot be in the future.");
+        }
+
+        String hashedPassword = passwordEncoder.encode(rawPassword);
+        log.debug("Hashed password: {}", hashedPassword);
+        Password hashedEmbeddablePassword = new Password(hashedPassword);
+        user.setPassword(hashedEmbeddablePassword);
+        user.getPreviousPasswords().add(hashedEmbeddablePassword);
 
         Age age = new Age();
         user.setAge(age.getAge(user.getDateOfBirth()));
+
+        userRepository.save(user);
 
         return user;
 
@@ -151,7 +139,7 @@ public class UserServiceImpl implements UserService {
         Optional<User> optionalUser = userRepository.findById(user.getUserId());
         if(optionalUser.isPresent()){
             User existingUser = optionalUser.get();
-            boolean isAdmin = user.getRole().equals(Role.Admin);
+            boolean isAdmin = user.getRole().equals(Role.ADMIN);
             boolean isMatching = user.getUserId() == existingUser.getUserId();
 
             if(!isAdmin){
@@ -225,7 +213,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<User> getAllUsers(User user) {
         List<User> allUsers = userRepository.findAll();
-        if(!user.getRole().equals(Role.Admin)){
+        if(!user.getRole().equals(Role.ADMIN)){
             throw new UnauthorizedException("You are not authorized to view all accounts.");
         }
         if(allUsers.isEmpty()) {
@@ -237,7 +225,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public User getByUsername(String username, User requester) {
         Optional<User> user = userRepository.findById(requester.getUserId());
-        boolean isAdmin = requester.getRole().equals(Role.Admin);
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
         if(user.isPresent()){
             if (isAdmin) {
                 return user.get();
@@ -254,7 +242,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void delete(String username, User requester) {
         User userToDelete = userRepository.findByUsername(username);
-        boolean isAdmin = requester.getRole().equals(Role.Admin);
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
         if (isAdmin || requester.getUsername().equals(userToDelete.getUsername())) {
             userRepository.delete(userToDelete);
         } else {
