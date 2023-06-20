@@ -1,23 +1,17 @@
 package com.maidgroup.maidgroup.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.maidgroup.maidgroup.dao.PasswordRepository;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.userinfo.Age;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
-import com.maidgroup.maidgroup.security.PasswordEmbeddable;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.exceptions.*;
+import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -27,6 +21,7 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -34,9 +29,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
-import static org.aspectj.bridge.MessageUtil.fail;
-
+@Transactional
 @Log4j2
 @NoArgsConstructor
 @Data
@@ -80,6 +75,7 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    @Transactional
     @Override
     public User register(User user) {
         String username = user.getUsername();
@@ -134,6 +130,7 @@ public class UserServiceImpl implements UserService {
 
     }
 
+    @Transactional
     @Override
     public User updateUser(User user) {
         Optional<User> optionalUser = userRepository.findById(user.getUserId());
@@ -210,18 +207,20 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    @Transactional(readOnly = true)
     @Override
-    public List<User> getAllUsers(User user) {
-        List<User> allUsers = userRepository.findAll();
+    public List<UserResponse> getAllUsers(User user) {
         if(!user.getRole().equals(Role.ADMIN)){
             throw new UnauthorizedException("You are not authorized to view all accounts.");
         }
+        List<User> allUsers = userRepository.findAll();
         if(allUsers.isEmpty()) {
             throw new UserNotFoundException("No users were found.");
         }
-        return allUsers;
+        return allUsers.stream().map(UserResponse::new).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     @Override
     public User getByUsername(String username, User requester) {
         Optional<User> user = userRepository.findById(requester.getUserId());
@@ -239,6 +238,7 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    @Transactional
     @Override
     public void delete(String username, User requester) {
         User userToDelete = userRepository.findByUsername(username);

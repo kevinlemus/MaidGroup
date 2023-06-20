@@ -147,9 +147,10 @@ public class UserController {
     @GetMapping("/getAllUsers")
     public @ResponseBody List<UserResponse> getAllUsers(Principal principal){
         User authUser = userRepository.findByUsername(principal.getName());
-        List<User> allUsers = userService.getAllUsers(authUser);
-        return allUsers.stream().map(UserResponse::new).collect(Collectors.toList());
+        List<UserResponse> allUsers = userService.getAllUsers(authUser);
+        return allUsers;
     }
+
     /*
     public ResponseEntity<List<User>> getAllUsers(@RequestBody User user){
         List<User> allUsers = userService.getAllUsers(user);
