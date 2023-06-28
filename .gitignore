@@ -34,3 +34,6 @@ build/
 
 db.properties
 application.properties
+application.yaml
+log4j2.properties
+maidgroup.log

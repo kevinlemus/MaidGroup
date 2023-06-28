@@ -26,14 +26,19 @@ import java.util.Optional;
 @CrossOrigin
 public class ConsultationController {
 
-    @Autowired
     ConsultationService consultService;
-    @Autowired
     ConsultationRepository consultRepository;
-    @Autowired
     UserService userService;
-    @Autowired
     UserRepository userRepository;
+
+
+    @Autowired
+    public ConsultationController(ConsultationService consultService, ConsultationRepository consultRepository, UserService userService, UserRepository userRepository) {
+        this.consultService = consultService;
+        this.consultRepository = consultRepository;
+        this.userService = userService;
+        this.userRepository = userRepository;
+    }
 
     @PostMapping("/create")
     public ResponseEntity<Consultation> createConsultation(@RequestBody Consultation consultation){
@@ -63,7 +68,7 @@ public class ConsultationController {
     @GetMapping("/allConsultations")
     public ResponseEntity<List<Consultation>> getAllConsultations(@AuthenticationPrincipal UserDetails userDetails){
         try{
-            List<Consultation> allConsultations = consultService.getAllConsults(userRepository.findById(userDetails.getUsername()).orElse(null));
+            List<Consultation> allConsultations = consultService.getAllConsults(userRepository.findByUsername(userDetails.getUsername()));
             return ResponseEntity.status(HttpStatus.OK).body(allConsultations);
         }catch (ConsultationNotFoundException e){
             return ResponseEntity.notFound().build();
@@ -97,7 +102,7 @@ public class ConsultationController {
     public ResponseEntity<List<Consultation>> getConsultByDate(@PathVariable("date")LocalDate date, @AuthenticationPrincipal UserDetails userDetails){
         try {
             List<Consultation> consultation = consultRepository.findByDate(date);
-            User user = userRepository.findById(userDetails.getUsername()).orElse(null);
+            User user = userRepository.findByUsername(userDetails.getUsername());
             return new ResponseEntity<List<Consultation>>(consultService.getConsultByDate(user, date), HttpStatus.OK);
         }catch (UserNotFoundException u){
             return ResponseEntity.notFound().build();
@@ -112,7 +117,7 @@ public class ConsultationController {
     public ResponseEntity<Consultation> update(@PathVariable("id")int id, @AuthenticationPrincipal UserDetails userDetails){
         try{
             Consultation consultation = consultRepository.findById(id).orElseThrow();
-            User user = userRepository.findById(userDetails.getUsername()).orElseThrow();
+            User user = userRepository.findByUsername(userDetails.getUsername());
             consultService.update(user, consultation);
             return ResponseEntity.ok().body(consultation);
         }catch (ConsultationNotFoundException c){
@@ -132,7 +137,7 @@ public class ConsultationController {
     public ResponseEntity<Consultation> cancelConsultation (@PathVariable("id")int id, @RequestParam("from") String from, @RequestBody String body, @AuthenticationPrincipal UserDetails userDetails){
         try{
             Consultation consultation = consultRepository.findById(id).orElseThrow();
-            User user = userRepository.findById(userDetails.getUsername()).orElseThrow();
+            User user = userRepository.findByUsername(userDetails.getUsername());
             consultService.cancelConsultation(from, body);
             return ResponseEntity.ok().build();
         }catch (ConsultationNotFoundException c){

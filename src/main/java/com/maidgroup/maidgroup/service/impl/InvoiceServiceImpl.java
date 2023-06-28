@@ -15,6 +15,11 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Autowired
     InvoiceRepository invoiceRepository;
 
+    @Autowired
+    public InvoiceServiceImpl(InvoiceRepository invoiceRepository) {
+        this.invoiceRepository = invoiceRepository;
+    }
+
     @Override
     public Invoice createInvoice(Invoice invoice) {
         Invoice retrievedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();

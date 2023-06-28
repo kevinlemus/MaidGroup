@@ -7,13 +7,21 @@ import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.exceptions.*;
+import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
+import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.validator.routines.EmailValidator;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -21,22 +29,39 @@ import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+@Transactional
+@Log4j2
+@NoArgsConstructor
+@Data
 @Service
 public class UserServiceImpl implements UserService {
 
-    @Autowired
     UserRepository userRepository;
-    @Autowired
     BCryptPasswordEncoder passwordEncoder;
+    JWTUtility jwtUtility;
+    //private Logger logger = LogManager.getLogger();
+
+    @Autowired
+    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, JWTUtility jwtUtility) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtility = jwtUtility;
+    }
 
     @Override
-    public boolean login(String username, String password, HttpServletRequest request) {
-        User u = userRepository.findByUsername(username);
-        if(u != null && passwordEncoder.matches(password, u.getPassword().toString())){
-            HttpSession session = request.getSession();
-            session.setAttribute("loggedInUser", u);
-            return true;
+    public User login(String username, String password) {
+        User u = userRepository.findByUsername(username)/*.orElseThrow(UserNotFoundException::new)*/;
+        log.debug("Password being encoded: {}", password);
+        log.debug("Encoded password: {}", u.getPassword().getHashedPassword());
+        log.debug("Passed in password after being encoded: {}", passwordEncoder.encode(password));
+
+        boolean matches = passwordEncoder.matches(password, u.getPassword().getHashedPassword());
+        log.debug("passwordEncoder.matches() result: {}", matches);
+
+        if(u != null && passwordEncoder.matches(password, u.getPassword().getHashedPassword())){
+            return u;
         }else{
             throw new InvalidCredentialsException("The provided credentials were incorrect.");
         }
@@ -50,110 +75,77 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    private void validatePassword(String password) {
-        String regex = "(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\\S+$){8,}";
-        String[] requirements = {
-                "At least 8 characters long",
-                "Contains at least one digit",
-                "Contains at least one lowercase letter",
-                "Contains at least one uppercase letter",
-                "Contains at least one special character (@#$%^&+=)",
-                "Cannot have empty spaces"
-        };
-        List<String> missingRequirements = new ArrayList<>();
-
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(password);
-        if (!matcher.matches()) {
-            for (int i = 0; i < requirements.length; i++) {
-                if (!password.matches(".*[" + getRegexForRequirement(i) + "]")) {
-                    missingRequirements.add(requirements[i]);
-                }
-            }
-            throw new InvalidPasswordException("Password does not meet the following requirements: " + String.join(", ", missingRequirements));
-        }
-    }
-
-    private String getRegexForRequirement(int index) {
-        switch (index) {
-            case 0:
-                return "";
-            case 1:
-                return "0-9";
-            case 2:
-                return "a-z";
-            case 3:
-                return "A-Z";
-            case 4:
-                return "@#$%^&+=";
-            case 5:
-                return " ";
-            default:
-                return "";
-        }
-    }
+    @Transactional
     @Override
     public User register(User user) {
         String username = user.getUsername();
         User u = userRepository.findByUsername(username);
-        if(u!=null) {
+
+        if (u != null) {
             throw new RuntimeException("Username is already taken");
         }
-        if(StringUtils.isEmpty(user.getUsername())){
+        if (StringUtils.isEmpty(user.getUsername())) {
             throw new RuntimeException("Username must not be empty");
         }
-        if(user.getFirstName().isEmpty()){
+        if (user.getFirstName().isEmpty()) {
             throw new RuntimeException("First name cannot be empty");
         }
-        if(user.getLastName().isEmpty()){
+        if (user.getLastName().isEmpty()) {
             throw new RuntimeException("Last name cannot be empty");
         }
         EmailValidator emailValidator = EmailValidator.getInstance();
         if (!emailValidator.isValid(user.getEmail())) {
             throw new RuntimeException("Invalid email address");
         }
-        if(user.getGender() == null){
+        if (user.getGender() == null) {
             throw new RuntimeException("Must select a gender option");
         }
 
-        validatePassword(user.getPassword().toString());
+        String rawPassword = user.getRawPassword();
+        validatePassword(rawPassword);
+        String confirmPassword = user.getConfirmPassword().getHashedPassword();
 
-        if(!user.getPassword().equals(user.getConfirmPassword())){
+        if (!rawPassword.equals(confirmPassword)) {
             throw new PasswordMismatchException("Passwords do not match.");
         }
-        if(user.getDateOfBirth() == null){
+        if (user.getDateOfBirth() == null) {
             throw new RuntimeException("Must enter your date of birth");
         }
-        if(user.getDateOfBirth() != null && user.getDateOfBirth().isAfter(LocalDate.now())){
+        if (user.getDateOfBirth() != null && user.getDateOfBirth().isAfter(LocalDate.now())) {
             throw new RuntimeException("Date of birth cannot be in the future.");
         }
 
-        Password hashedPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));
-        user.setPassword(hashedPassword);
-        user.getPreviousPasswords().add(hashedPassword);
-
-        userRepository.save(user);
+        String hashedPassword = passwordEncoder.encode(rawPassword);
+        log.debug("Hashed password: {}", hashedPassword);
+        Password hashedEmbeddablePassword = new Password(hashedPassword);
+        user.setPassword(hashedEmbeddablePassword);
+        user.getPreviousPasswords().add(hashedEmbeddablePassword);
 
         Age age = new Age();
         user.setAge(age.getAge(user.getDateOfBirth()));
+
+        userRepository.save(user);
 
         return user;
 
     }
 
+    @Transactional
     @Override
-    public User updateUser(User user, String username) {
-        Optional<User> optionalUser = userRepository.findById(username);
+    public User updateUser(User user) {
+        Optional<User> optionalUser = userRepository.findById(user.getUserId());
         if(optionalUser.isPresent()){
             User existingUser = optionalUser.get();
-            boolean isAdmin = user.getRole().equals(Role.Admin);
-            boolean isUpdatingOwnInfo = user.getUsername().equals(existingUser.getUsername());
+            boolean isAdmin = user.getRole().equals(Role.ADMIN);
+            boolean isMatching = user.getUserId() == existingUser.getUserId();
 
-            if(!isAdmin && !isUpdatingOwnInfo){
-                throw new UnauthorizedException("You are not authorized to update this account.");
+            if(!isAdmin){
+                if(!isMatching) {
+                    throw new UnauthorizedException("You are not authorized to update this account.");
+                }
             }
             if(user.getUsername() != null && !user.getUsername().equals(existingUser.getUsername())){
-                if(userRepository.existsByUsername(user.getUsername())){
+                if(userRepository.findByUsername(user.getUsername())!=null){
                     throw new UsernameAlreadyExists("Username is already taken.");
                 }
                 existingUser.setUsername(user.getUsername());
@@ -163,18 +155,26 @@ public class UserServiceImpl implements UserService {
 
                 validatePassword(user.getPassword().toString());
 
-                if(user.getConfirmPassword() == null || !user.getConfirmPassword().equals(user.getPassword())){
+                if(user.getConfirmPassword() == null || user.getConfirmPassword().toString().trim().equals("") || !user.getConfirmPassword().toString().equals(user.getPassword().toString())){
                     throw new PasswordMismatchException("Passwords do not match.");
                 }
                 if(existingUser.getPreviousPasswords().stream().anyMatch(p -> passwordEncoder.matches(user.getPassword().toString(), String.valueOf(p)))){
                     throw new InvalidPasswordException("Password has already been used.");
                 }
+                Password oldPassword = existingUser.getPassword();// get the old password from the existing user
+                Optional<Password> oldPasswordEntity = existingUser.getPreviousPasswords().stream() // find the corresponding Password object in the previousPasswords list
+                        .filter(password -> password.getHashedPassword().equals(oldPassword.getHashedPassword()))
+                        .findFirst();
+                oldPasswordEntity.ifPresent(password -> { // update the date last used of the old password
+                    password.setDateLastUsed(LocalDate.now());
+                });
+                Password newPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));// create a new Password object and save it to the database
+                Password newPwdEmbeddable = new Password(newPassword.toString());
+                existingUser.getPreviousPasswords().add(newPwdEmbeddable);// add the new Password object to the previousPasswords list
+                existingUser.setPassword(new Password(newPassword.getHashedPassword(), newPassword.getDateLastUsed()));// set the password field to a new PasswordEmbeddable object created from the new Password object
 
-                Password oldPassword = existingUser.getPassword();//creating a way to change properties of our old password
-                oldPassword.setDateLastUsed(LocalDate.now());//we are setting the last date it was used before changing the password
-                Password newPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));//created a password instance with and set the hashed password in the constructor
-                existingUser.getPreviousPasswords().add(newPassword);//adding the new password to all passwords the user has used.
-                existingUser.setPassword(newPassword);//changing password to the new password
+                userRepository.save(existingUser);
+
             }
             if(user.getFirstName() != null){
                 existingUser.setFirstName(user.getFirstName());
@@ -203,26 +203,28 @@ public class UserServiceImpl implements UserService {
 
             return userRepository.save(existingUser);
         }else{
-            throw new UserNotFoundException("No user with the username "+username+" was found.");
+            throw new UserNotFoundException("No user was found.");
         }
     }
 
+    @Transactional(readOnly = true)
     @Override
-    public List<User> getAllUsers(User user) {
-        List<User> allUsers = userRepository.findAll();
-        if(!user.getRole().equals(Role.Admin)){
+    public List<UserResponse> getAllUsers(User user) {
+        if(!user.getRole().equals(Role.ADMIN)){
             throw new UnauthorizedException("You are not authorized to view all accounts.");
         }
+        List<User> allUsers = userRepository.findAll();
         if(allUsers.isEmpty()) {
             throw new UserNotFoundException("No users were found.");
         }
-        return allUsers;
+        return allUsers.stream().map(UserResponse::new).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     @Override
     public User getByUsername(String username, User requester) {
-        Optional<User> user = userRepository.findById(username);
-        boolean isAdmin = requester.getRole().equals(Role.Admin);
+        Optional<User> user = userRepository.findById(requester.getUserId());
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
         if(user.isPresent()){
             if (isAdmin) {
                 return user.get();
@@ -236,16 +238,58 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    @Transactional
     @Override
     public void delete(String username, User requester) {
         User userToDelete = userRepository.findByUsername(username);
-        boolean isAdmin = requester.getRole().equals(Role.Admin);
-        if (isAdmin) {
-            userRepository.delete(userToDelete);
-        } else if (requester.getUsername().equals(username)) {
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
+        if (isAdmin || requester.getUsername().equals(userToDelete.getUsername())) {
             userRepository.delete(userToDelete);
         } else {
             throw new UnauthorizedException("You are not authorized to delete this account.");
+        }
+    }
+
+    private void validatePassword(String password) {
+        String regex = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&+=])(?=\\S+$).{8,}$";
+        String[] requirements = {
+                "At least 8 characters long",
+                "Contains at least one digit",
+                "Contains at least one lowercase letter",
+                "Contains at least one uppercase letter",
+                "Contains at least one special character (!@#$%^&+=)",
+                "Cannot have empty spaces"
+        };
+        List<String> missingRequirements = new ArrayList<>();
+
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(password);
+        if (!matcher.find()) {
+            for (int i = 0; i < requirements.length; i++) {
+                if (!password.matches(".*[" + getRegexForRequirement(i) + "]")) {
+                    missingRequirements.add(requirements[i]);
+                }
+            }
+            throw new InvalidPasswordException("Password does not meet the following requirements: " + String.join(", ", missingRequirements));
+        }
+    }
+
+    private String getRegexForRequirement(int index) {
+        switch (index) {
+            case 0:
+                return ".";
+            case 1:
+                return "0-9";
+            case 2:
+                return "a-z";
+            case 3:
+                return "A-Z";
+            case 4:
+                return "!@#$%^&+=";
+            case 5:
+                return " ";
+            default:
+                return "";
         }
     }
 }
