@@ -12,6 +12,7 @@ import com.maidgroup.maidgroup.util.dto.LoginCreds;
 import com.maidgroup.maidgroup.util.dto.Requests.UserRequest;
 import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.log4j.Log4j2;
@@ -68,18 +69,22 @@ public class UserController {
         return new ResponseEntity<UserResponse>(userResponse, HttpStatus.CREATED);
     }
 
-
     @ExceptionHandler({JsonProcessingException.class})
     @ResponseStatus(value = HttpStatus.BAD_REQUEST)
     public @ResponseBody String exceptionInvalidJsonProcessing(JsonProcessingException e){
         return e.getMessage();
     }
+
     @PostMapping("/login")
     public UserResponse login(@RequestBody LoginCreds loginCreds, HttpServletResponse response){
         User authUser = userService.login(loginCreds.getUsername(), loginCreds.getPassword());
         UserResponse userResponse = new UserResponse(authUser);
         String token = jwtUtility.createToken(authUser);
         response.setHeader("Authorization", token);
+        Cookie cookie = new Cookie("jwt", token);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        response.addCookie(cookie);
 
         return userResponse;
     }
@@ -109,9 +114,24 @@ public class UserController {
     }*/
 
     @PostMapping("/logout")
-    public ResponseEntity<User> logout(@RequestBody User logoutRequest, HttpServletRequest request){
-        userService.logout(request);
+    public ResponseEntity<User> logout(@RequestBody User logoutRequest, HttpServletRequest request, HttpServletResponse response){
+        String jwt = extractJwt(request);
+        userService.logout(jwt);
+        Cookie cookie = new Cookie("jwt", null);
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
         return ResponseEntity.status(HttpStatus.OK).build();
+    }
+
+    private String extractJwt(HttpServletRequest request){
+        if(request.getCookies() != null){
+            for (Cookie cookie : request.getCookies()) {
+                if(cookie.getName().equals("jwt")){
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
     }
 
     @PostMapping("/{username}")

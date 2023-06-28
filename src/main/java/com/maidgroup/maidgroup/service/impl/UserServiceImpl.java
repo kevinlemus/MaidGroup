@@ -24,9 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -67,12 +65,19 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    private Set<String> blacklist = new HashSet<>();
+
     @Override
-    public void logout(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if(session != null) {
-            session.invalidate();
+    public void logout(String token) {
+        if (isTokenValid(token)) {
+            blacklist.add(token);
+        }else {
+            throw new InvalidCredentialsException("Invalid Token");
         }
+    }
+
+    public boolean isTokenValid(String token){
+        return !blacklist.contains(token);
     }
 
     @Transactional

@@ -9,7 +9,7 @@ import java.util.List;
 public interface UserService {
 
     User login(String username, String password);
-    void logout(HttpServletRequest request);
+    void logout(String token);
     User register(User user);
     User updateUser(User user);
     List<UserResponse> getAllUsers(User user);
