@@ -21,6 +21,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
@@ -96,24 +98,6 @@ public class UserController {
         return e.getMessage();
     }
 
-  /*  public ResponseEntity<User> login(@RequestBody User loginRequest, HttpServletRequest request){
-        String username = loginRequest.getUsername();
-        String password = loginRequest.getPassword().toString();
-        boolean loggedIn = userService.login(username, password, request);
-
-        if(loggedIn){
-            User user = userRepository.findByUsername(username);
-            String message = "You have successfully logged in";
-            return ResponseEntity.ok()
-                    .header("loggedIn", "Success")
-                    .header("message", message)
-                    .body(user);
-
-        }else{
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
-    }*/
-
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@RequestBody UserRequest logoutRequest, HttpServletRequest request, HttpServletResponse response){
         String jwt = logoutRequest.getJwt();
@@ -170,16 +154,11 @@ public class UserController {
         return allUsers;
     }
 
-    /*
-    public ResponseEntity<List<User>> getAllUsers(@RequestBody User user){
-        List<User> allUsers = userService.getAllUsers(user);
-        return ResponseEntity.status(HttpStatus.OK).body(allUsers);
-    }*/
-
     @PutMapping("/{username}")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable String username, @RequestBody UserRequest userRequest, Principal principal){
+    public ResponseEntity<UserResponse> updateUser(@PathVariable String username, @RequestBody UserRequest userRequest){
         // Check if the user is authenticated
-        if (principal == null) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
             return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
 
@@ -203,8 +182,6 @@ public class UserController {
 
         return new ResponseEntity<>(userResponse, HttpStatus.OK);
     }
-
-
 
 }
 

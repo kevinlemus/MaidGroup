@@ -165,31 +165,32 @@ public class UserServiceImpl implements UserService {
                     throw new InvalidPasswordException("Password must be different.");
                 }
 
-                String rawPassword = user.getRawPassword();
-                validatePassword(user.getRawPassword());
-                validatePassword(rawPassword);
-                String confirmPassword = user.getConfirmPassword().getHashedPassword();
+                if(user.getRawPassword() != null){
+                    validatePassword(user.getRawPassword());
+                    String rawPassword = user.getRawPassword();
 
-                if(user.getConfirmPassword() == null){
-                    throw new PasswordMismatchException("Confirm password cannot be empty.");
+                    if(user.getConfirmPassword() != null){
+                        String confirmPassword = user.getConfirmPassword().getHashedPassword();
+
+                        if(!rawPassword.equals(confirmPassword)){
+                            throw new PasswordMismatchException("Passwords do not match.");
+                        }
+                    }
+
+                    if(existingUser.getPreviousPasswords().stream().anyMatch(p -> passwordEncoder.matches(rawPassword, p.getHashedPassword()))){
+                        throw new InvalidPasswordException("Password has already been used.");
+                    }
+                    Password oldPassword = existingUser.getPassword();// get the old password from the existing user
+                    oldPassword.setDateLastUsed(LocalDate.now());
+                    Password newPassword = new Password(passwordEncoder.encode(rawPassword));// create a new Password object and save it to the database
+                    existingUser.getPreviousPasswords().add(newPassword);// add the new Password object to the previousPasswords list
+                    existingUser.setPassword(new Password(newPassword.getHashedPassword(), newPassword.getDateLastUsed()));// set the password field to a new PasswordEmbeddable object created from the new Password object
+
+                    userRepository.save(existingUser);
                 }
-
-                if(!rawPassword.equals(confirmPassword)){
-                    throw new PasswordMismatchException("Passwords do not match.");
-                }
-
-                if(existingUser.getPreviousPasswords().stream().anyMatch(p -> passwordEncoder.matches(rawPassword, p.getHashedPassword()))){
-                    throw new InvalidPasswordException("Password has already been used.");
-                }
-                Password oldPassword = existingUser.getPassword();// get the old password from the existing user
-                oldPassword.setDateLastUsed(LocalDate.now());
-                Password newPassword = new Password(passwordEncoder.encode(rawPassword));// create a new Password object and save it to the database
-                existingUser.getPreviousPasswords().add(newPassword);// add the new Password object to the previousPasswords list
-                existingUser.setPassword(new Password(newPassword.getHashedPassword(), newPassword.getDateLastUsed()));// set the password field to a new PasswordEmbeddable object created from the new Password object
-
-                userRepository.save(existingUser);
-
             }
+
+
             if(user.getFirstName() != null){
                 existingUser.setFirstName(user.getFirstName());
             }

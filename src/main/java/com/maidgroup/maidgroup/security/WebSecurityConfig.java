@@ -33,30 +33,6 @@ public class WebSecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-   /* @Bean
-    @Primary
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception{
-        http
-                .authorizeRequests(auth -> auth
-                        .requestMatchers("/getAllUsers").hasRole("Admin")
-                        .requestMatchers("/login").permitAll()
-                        .requestMatchers("/registerUser").permitAll()
-                        .anyRequest().authenticated()
-                )
-                //.and()
-                //.formLogin()
-                //.loginPage("/login")
-                //.and()
-                .logout()
-                .logoutSuccessUrl("/")
-                .invalidateHttpSession(true)//any resources/data associated with the session cookie will be lost/released
-                .deleteCookies("JSESSIONID")//deleting session cookie, JSESSIONID being the default session cookie name
-                .and()
-                .csrf() // enable csrf protection
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()); // use cookie as csrf token repository
-        return http.build();
-    }*/
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception{
         http.csrf().disable();
