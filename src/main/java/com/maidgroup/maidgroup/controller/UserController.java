@@ -3,6 +3,7 @@ package com.maidgroup.maidgroup.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
+import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.exceptions.InvalidCredentialsException;
@@ -58,7 +59,7 @@ public class UserController {
         user.setEmail(userRequest.getEmail());
         user.setGender(userRequest.getGender());
         user.setDateOfBirth(userRequest.getDateOfBirth());
-        user.setRole(userRequest.getRole());
+        user.setRole(Role.USER);
 
         // Call the register() method and pass the User object
         User registeredUser = userService.register(user);
@@ -114,8 +115,13 @@ public class UserController {
     }*/
 
     @PostMapping("/logout")
-    public ResponseEntity<User> logout(@RequestBody User logoutRequest, HttpServletRequest request, HttpServletResponse response){
-        String jwt = extractJwt(request);
+    public ResponseEntity<Void> logout(@RequestBody UserRequest logoutRequest, HttpServletRequest request, HttpServletResponse response){
+        String jwt = logoutRequest.getJwt();
+        if(jwt == null) {
+            if (jwt == null) {
+                jwt = extractJwt(request);
+            }
+        }
         userService.logout(jwt);
         Cookie cookie = new Cookie("jwt", null);
         cookie.setMaxAge(0);
@@ -171,8 +177,34 @@ public class UserController {
     }*/
 
     @PutMapping("/{username}")
-    public ResponseEntity<User> updateUser(@RequestBody User user){
-        return new ResponseEntity<User>(userService.updateUser(user), HttpStatus.OK);
+    public ResponseEntity<UserResponse> updateUser(@PathVariable String username, @RequestBody UserRequest userRequest, Principal principal){
+        // Check if the user is authenticated
+        if (principal == null) {
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+        }
+
+        User user = new User();
+        user.setUsername(username);
+        user.setPassword(new Password(userRequest.getPassword()));
+        user.setRawPassword(userRequest.getPassword());
+        user.setConfirmPassword(new Password(userRequest.getConfirmPassword()));
+        user.setFirstName(userRequest.getFirstName());
+        user.setLastName(userRequest.getLastName());
+        user.setEmail(userRequest.getEmail());
+        user.setGender(userRequest.getGender());
+        user.setDateOfBirth(userRequest.getDateOfBirth());
+        // Set the role if it is provided in the request body
+        if (userRequest.getRole() != null) {
+            user.setRole(userRequest.getRole());
+        }
+
+        User updatedUser = userService.updateUser(user);
+        UserResponse userResponse = new UserResponse(updatedUser);
+
+        return new ResponseEntity<>(userResponse, HttpStatus.OK);
     }
+
+
+
 }
 

@@ -107,6 +107,7 @@ public class UserServiceImpl implements UserService {
         }
 
         String rawPassword = user.getRawPassword();
+        log.debug("Raw password: {}", rawPassword);
         validatePassword(rawPassword);
         String confirmPassword = user.getConfirmPassword().getHashedPassword();
 
@@ -138,16 +139,19 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Override
     public User updateUser(User user) {
-        Optional<User> optionalUser = userRepository.findById(user.getUserId());
+        Optional<User> optionalUser = Optional.ofNullable(userRepository.findByUsername(user.getUsername()));
         if(optionalUser.isPresent()){
             User existingUser = optionalUser.get();
-            boolean isAdmin = user.getRole().equals(Role.ADMIN);
-            boolean isMatching = user.getUserId() == existingUser.getUserId();
+            boolean isAdmin = existingUser.getRole().equals(Role.ADMIN);
+            boolean isMatching = user.getUsername().equals(existingUser.getUsername());
 
             if(!isAdmin){
                 if(!isMatching) {
                     throw new UnauthorizedException("You are not authorized to update this account.");
                 }
+            } else {
+                // Allow ADMIN users to update other user's role
+                existingUser.setRole(user.getRole());
             }
             if(user.getUsername() != null && !user.getUsername().equals(existingUser.getUsername())){
                 if(userRepository.findByUsername(user.getUsername())!=null){
@@ -156,26 +160,31 @@ public class UserServiceImpl implements UserService {
                 existingUser.setUsername(user.getUsername());
             }
 
-            if(user.getPassword() != null && !user.getPassword().equals(existingUser.getPassword())){
+            if(user.getPassword() != null){
+                if (user.getPassword().equals(existingUser.getPassword())){
+                    throw new InvalidPasswordException("Password must be different.");
+                }
 
-                validatePassword(user.getPassword().toString());
+                String rawPassword = user.getRawPassword();
+                validatePassword(user.getRawPassword());
+                validatePassword(rawPassword);
+                String confirmPassword = user.getConfirmPassword().getHashedPassword();
 
-                if(user.getConfirmPassword() == null || user.getConfirmPassword().toString().trim().equals("") || !user.getConfirmPassword().toString().equals(user.getPassword().toString())){
+                if(user.getConfirmPassword() == null){
+                    throw new PasswordMismatchException("Confirm password cannot be empty.");
+                }
+
+                if(!rawPassword.equals(confirmPassword)){
                     throw new PasswordMismatchException("Passwords do not match.");
                 }
-                if(existingUser.getPreviousPasswords().stream().anyMatch(p -> passwordEncoder.matches(user.getPassword().toString(), String.valueOf(p)))){
+
+                if(existingUser.getPreviousPasswords().stream().anyMatch(p -> passwordEncoder.matches(rawPassword, p.getHashedPassword()))){
                     throw new InvalidPasswordException("Password has already been used.");
                 }
                 Password oldPassword = existingUser.getPassword();// get the old password from the existing user
-                Optional<Password> oldPasswordEntity = existingUser.getPreviousPasswords().stream() // find the corresponding Password object in the previousPasswords list
-                        .filter(password -> password.getHashedPassword().equals(oldPassword.getHashedPassword()))
-                        .findFirst();
-                oldPasswordEntity.ifPresent(password -> { // update the date last used of the old password
-                    password.setDateLastUsed(LocalDate.now());
-                });
-                Password newPassword = new Password(passwordEncoder.encode(user.getPassword().toString()));// create a new Password object and save it to the database
-                Password newPwdEmbeddable = new Password(newPassword.toString());
-                existingUser.getPreviousPasswords().add(newPwdEmbeddable);// add the new Password object to the previousPasswords list
+                oldPassword.setDateLastUsed(LocalDate.now());
+                Password newPassword = new Password(passwordEncoder.encode(rawPassword));// create a new Password object and save it to the database
+                existingUser.getPreviousPasswords().add(newPassword);// add the new Password object to the previousPasswords list
                 existingUser.setPassword(new Password(newPassword.getHashedPassword(), newPassword.getDateLastUsed()));// set the password field to a new PasswordEmbeddable object created from the new Password object
 
                 userRepository.save(existingUser);

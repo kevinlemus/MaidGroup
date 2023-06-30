@@ -17,6 +17,7 @@ import java.time.LocalDate;
 public class UserRequest {
     private String username;
     private String password;
+    private String rawPassword;
     private String confirmPassword;
     private String firstName;
     private String lastName;
@@ -25,5 +26,6 @@ public class UserRequest {
     private LocalDate dateOfBirth;
     private Role role;
     private int age;
+    private String jwt;
 }
 
