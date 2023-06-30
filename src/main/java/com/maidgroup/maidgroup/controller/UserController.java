@@ -154,8 +154,8 @@ public class UserController {
         return allUsers;
     }
 
-    @PutMapping("/{username}")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable String username, @RequestBody UserRequest userRequest){
+    @PutMapping("/{userId}")
+    public ResponseEntity<UserResponse> updateUser(@PathVariable Long userId, @RequestBody UserRequest userRequest){
         // Check if the user is authenticated
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -163,7 +163,8 @@ public class UserController {
         }
 
         User user = new User();
-        user.setUsername(username);
+        user.setUserId(userId);
+        user.setUsername(userRequest.getUsername());
         user.setPassword(new Password(userRequest.getPassword()));
         user.setRawPassword(userRequest.getPassword());
         user.setConfirmPassword(new Password(userRequest.getConfirmPassword()));

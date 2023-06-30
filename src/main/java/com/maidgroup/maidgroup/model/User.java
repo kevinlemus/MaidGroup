@@ -22,7 +22,7 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long userId;
+    private Long userId;
     @Column(name = "username", columnDefinition = "varchar(255) DEFAULT ''")
     private String username;
     @Embedded

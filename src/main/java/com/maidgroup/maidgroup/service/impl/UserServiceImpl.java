@@ -139,11 +139,11 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Override
     public User updateUser(User user) {
-        Optional<User> optionalUser = Optional.ofNullable(userRepository.findByUsername(user.getUsername()));
+        Optional<User> optionalUser = userRepository.findById(user.getUserId());
         if(optionalUser.isPresent()){
             User existingUser = optionalUser.get();
             boolean isAdmin = existingUser.getRole().equals(Role.ADMIN);
-            boolean isMatching = user.getUsername().equals(existingUser.getUsername());
+            boolean isMatching = user.getUserId().equals(existingUser.getUserId());
 
             if(!isAdmin){
                 if(!isMatching) {
@@ -153,11 +153,16 @@ public class UserServiceImpl implements UserService {
                 // Allow ADMIN users to update other user's role
                 existingUser.setRole(user.getRole());
             }
-            if(user.getUsername() != null && !user.getUsername().equals(existingUser.getUsername())){
-                if(userRepository.findByUsername(user.getUsername())!=null){
+            if(user.getUsername() != null){
+                if(user.getUsername().equals(existingUser.getUsername())){
+                    throw new UsernameAlreadyExists("Username cannot be the same.");
+                }
+                if(userRepository.findByUsername(user.getUsername()) != null){
                     throw new UsernameAlreadyExists("Username is already taken.");
                 }
                 existingUser.setUsername(user.getUsername());
+                userRepository.save(existingUser);
+
             }
 
             if(user.getPassword() != null){
@@ -189,7 +194,6 @@ public class UserServiceImpl implements UserService {
                     userRepository.save(existingUser);
                 }
             }
-
 
             if(user.getFirstName() != null){
                 existingUser.setFirstName(user.getFirstName());

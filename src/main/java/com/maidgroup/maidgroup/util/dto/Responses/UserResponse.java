@@ -16,7 +16,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 public class UserResponse {
-    private long userId;
+    private Long userId;
     private String username;
     private Password password;
     private List<Password> previousPasswords = new ArrayList<>();
