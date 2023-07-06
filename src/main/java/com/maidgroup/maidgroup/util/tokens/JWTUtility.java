@@ -10,6 +10,7 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -19,6 +20,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.Optional;
 
+@Log4j2
 @AllArgsConstructor
 @NoArgsConstructor
 @Component
@@ -43,8 +45,8 @@ public class JWTUtility {
 
     public String createToken(User user) throws IOException {
         JwtBuilder tokenBuilder = Jwts.builder()
-                .setId(String.valueOf(user.getUsername()))
-                .setSubject(user.getFirstName())
+                .setId(String.valueOf(user.getUserId()))
+                .setSubject(user.getUsername())
                 .setIssuer("maidgroup")
                 .claim("firstName", user.getFirstName())
                 .claim("lastName", user.getLastName())
@@ -56,14 +58,18 @@ public class JWTUtility {
         return tokenBuilder.compact();
     }
 
+
     public boolean isTokenValid(String token){
+        log.debug("Entering isTokenValid method with token: {}", token);
         if (token == null || token.trim().isEmpty()) {
             return false;
         }
         try {
             parseToken(token);
+            log.debug("Token is valid");
             return true;
         } catch (MalformedJwtException | IllegalArgumentException e) {
+            log.debug("An exception occurred while parsing the token", e);
             return false;
         }
     }
