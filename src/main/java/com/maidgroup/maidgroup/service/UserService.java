@@ -14,6 +14,6 @@ public interface UserService {
     User updateUser(User user);
     List<UserResponse> getAllUsers(User user);
     User getByUsername(String username, User requester);
-    void delete(String username, User requester);
+    void delete(Long userId, User requester);
 
 }

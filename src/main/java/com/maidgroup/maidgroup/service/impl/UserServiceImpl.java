@@ -187,10 +187,10 @@ public class UserServiceImpl implements UserService {
                     }
                     Password oldPassword = existingUser.getPassword();// get the old password from the existing user
                     oldPassword.setDateLastUsed(LocalDate.now());
+                    existingUser.getPreviousPasswords().add(oldPassword);
                     Password newPassword = new Password(passwordEncoder.encode(rawPassword));// create a new Password object and save it to the database
                     existingUser.getPreviousPasswords().add(newPassword);// add the new Password object to the previousPasswords list
                     existingUser.setPassword(new Password(newPassword.getHashedPassword(), newPassword.getDateLastUsed()));// set the password field to a new PasswordEmbeddable object created from the new Password object
-
                     userRepository.save(existingUser);
                 }
             }
@@ -213,7 +213,7 @@ public class UserServiceImpl implements UserService {
             }
             if(user.getDateOfBirth() != null){
                 if(user.getDateOfBirth().isAfter(LocalDate.now())){
-                    throw new RuntimeException("Date of birth cannot be in the future.");
+                    throw new InvalidDateException("Date of birth cannot be in the future.");
                 }
                 Age age = new Age();
                 existingUser.setDateOfBirth(user.getDateOfBirth());
@@ -242,12 +242,10 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     @Override
     public User getByUsername(String username, User requester) {
-        Optional<User> user = userRepository.findById(requester.getUserId());
+        Optional<User> user = Optional.ofNullable(userRepository.findByUsername(username));
         boolean isAdmin = requester.getRole().equals(Role.ADMIN);
         if(user.isPresent()){
-            if (isAdmin) {
-                return user.get();
-            } else if (requester.getUsername().equals(username)){
+            if (isAdmin || requester.getUsername().equals(username)) {
                 return user.get();
             } else {
                 throw new UnauthorizedException("You are not authorized to retrieve this account's information.");
@@ -259,13 +257,17 @@ public class UserServiceImpl implements UserService {
 
     @Transactional
     @Override
-    public void delete(String username, User requester) {
-        User userToDelete = userRepository.findByUsername(username);
-        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
-        if (isAdmin || requester.getUsername().equals(userToDelete.getUsername())) {
-            userRepository.delete(userToDelete);
+    public void delete(Long userId, User requester) {
+        Optional<User> userToDelete = userRepository.findById(userId);
+        if (userToDelete.isPresent()) {
+            boolean isAdmin = requester.getRole().equals(Role.ADMIN);
+            if (isAdmin || requester.getUserId().equals(userToDelete.get().getUserId())) {
+                userRepository.delete(userToDelete.get());
+            } else {
+                throw new UnauthorizedException("You are not authorized to delete this account.");
+            }
         } else {
-            throw new UnauthorizedException("You are not authorized to delete this account.");
+            throw new UserNotFoundException("No user was found.");
         }
     }
 

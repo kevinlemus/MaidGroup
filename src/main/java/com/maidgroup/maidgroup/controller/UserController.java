@@ -6,10 +6,7 @@ import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.UserService;
-import com.maidgroup.maidgroup.service.exceptions.InvalidCredentialsException;
-import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
-import com.maidgroup.maidgroup.service.exceptions.UserNotFoundException;
-import com.maidgroup.maidgroup.service.exceptions.UsernameAlreadyExists;
+import com.maidgroup.maidgroup.service.exceptions.*;
 import com.maidgroup.maidgroup.util.dto.LoginCreds;
 import com.maidgroup.maidgroup.util.dto.Requests.UserRequest;
 import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
@@ -167,26 +164,43 @@ public class UserController {
     }
 
     @GetMapping("/{username}")
-    public ResponseEntity<User> getByUsername(@PathVariable("username") String username, @RequestBody User requester){
-        try {
-            return new ResponseEntity<User>(userService.getByUsername(username, requester), HttpStatus.OK);
-        } catch (UserNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        } catch (UnauthorizedException d) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    public UserResponse getByUsername(@PathVariable("username") String username, Principal principal){
+        User authUser = userRepository.findByUsername(principal.getName());
+        User user = userService.getByUsername(username, authUser);
+        UserResponse userResponse = new UserResponse(user);
+        return userResponse;
     }
 
-    @PostMapping("/{username}")
-    public ResponseEntity<String> delete(@PathVariable("username") String username, @RequestBody User requester) {
-        try {
-            userService.delete(username, requester);
-            return new ResponseEntity<String>("Your account has been deleted", HttpStatus.OK);
-        } catch (UserNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        } catch (UnauthorizedException d) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    @DeleteMapping("/{userId}")
+    public String delete(@PathVariable("userId") Long userId, Principal principal) {
+        User authUser = userRepository.findByUsername(principal.getName());
+        userService.delete(userId, authUser);
+        return "Your account has been deleted";
     }
+
+    @ExceptionHandler({UserNotFoundException.class})
+    @ResponseStatus(value = HttpStatus.NOT_FOUND)
+    public @ResponseBody String handleUserNotFoundException(UserNotFoundException e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({UnauthorizedException.class})
+    @ResponseStatus(value = HttpStatus.UNAUTHORIZED)
+    public @ResponseBody String handleUnauthorizedException(UnauthorizedException e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({InvalidCredentialsException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handleInvalidCredentialsException(InvalidCredentialsException e) {
+        return e.getMessage();
+    }
+    @ExceptionHandler({InvalidDateException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handleInvalidDateException(InvalidDateException e) {
+        return e.getMessage();
+    }
+
+
 }
 
