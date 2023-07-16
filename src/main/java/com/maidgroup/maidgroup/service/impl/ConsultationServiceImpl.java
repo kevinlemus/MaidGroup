@@ -127,32 +127,22 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
     @Override
-    public List<Consultation> getConsultByStatus(User user, ConsultationStatus status) {
-        Optional<List<Consultation>> optionalConsultation = Optional.ofNullable(consultRepository.findByStatus(status));
-        Optional<User> optionalUser = userRepository.findById(user.getUserId());
-        if(!optionalConsultation.isPresent()){
-            throw new ConsultationNotFoundException("No consultation was found.");
-        }
-        if(!optionalUser.isPresent()){
+    public List<Consultation> getConsultByStatus(User requester, ConsultationStatus status) {
+        List<Consultation> consultations = consultRepository.findByStatus(status);
+        Optional<User> user = userRepository.findById(requester.getUserId());
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
+        if(user.isPresent()) {
+            if (isAdmin) {
+                if(consultations.isEmpty()){
+                    throw new ConsultationNotFoundException("No consultations with the status " + status + "were found.");
+                }
+                return consultations;
+            } else {
+                throw new UnauthorizedException("You are not authorized to retrieve these consultations.");
+            }
+        }else {
             throw new UserNotFoundException("No user was found.");
         }
-        List<Consultation> retrievedConsultations = optionalConsultation.get();
-        User retrievedUser = optionalUser.get();
-
-        if(retrievedUser.getRole()!=Role.ADMIN) {
-            List<Consultation> userConsultations = new ArrayList<>();
-            for (Consultation c : retrievedConsultations) {
-                if (c.getUser().getUsername().equals(retrievedUser.getUsername())) {
-                    userConsultations.add(c);
-                }
-            }
-            if (userConsultations.isEmpty()) {
-                throw new NullPointerException("No consultations with the status " + status + "were found.");
-            }
-            return userConsultations;
-        }
-
-        return retrievedConsultations;
     }
 
     @Override

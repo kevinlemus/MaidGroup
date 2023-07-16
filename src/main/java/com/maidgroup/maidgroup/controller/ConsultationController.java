@@ -23,6 +23,8 @@ import java.security.Principal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
 @RestController
 @RequestMapping("/consultation")
 @CrossOrigin
@@ -75,17 +77,10 @@ public class ConsultationController {
     }
 
     @GetMapping("/{status}")
-    public ResponseEntity<List<Consultation>> getConsultByStatus(@PathVariable("status")ConsultationStatus status, @AuthenticationPrincipal UserDetails userDetails){
-        try{
-            User user = userRepository.findByUsername(userDetails.getUsername());
-            List<Consultation> allConsultations = consultService.getConsultByStatus(user, status);
-            return ResponseEntity.status(HttpStatus.OK).body(allConsultations);
-
-        }catch (UserNotFoundException e){
-            return ResponseEntity.notFound().build();
-        }catch (ConsultationNotFoundException d){
-            return ResponseEntity.notFound().build();
-        }
+    public @ResponseBody List<ConsultResponse> getConsultByStatus(@PathVariable("status")ConsultationStatus status, Principal principal){
+        User authUser = userRepository.findByUsername(principal.getName());
+        List<Consultation> consultations = consultService.getConsultByStatus(authUser, status);
+        return consultations.stream().map(ConsultResponse::new).collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
