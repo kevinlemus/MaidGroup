@@ -11,6 +11,7 @@ import com.maidgroup.maidgroup.model.consultationinfo.ConsultationStatus;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.service.ConsultationService;
 import com.maidgroup.maidgroup.service.exceptions.*;
+import com.maidgroup.maidgroup.util.dto.Responses.ConsultResponse;
 import com.maidgroup.maidgroup.util.twilio.TwilioSMS;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
@@ -31,6 +32,7 @@ import java.io.InputStream;
 import java.nio.file.attribute.UserPrincipal;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ConsultationServiceImpl implements ConsultationService {
@@ -113,17 +115,15 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
     @Override
-    public List<Consultation> getAllConsults(User user) {
-        Optional<User> optionalUser = userRepository.findById(user.getUserId());
-        List<Consultation> allConsultations = consultRepository.findAll();
-        User retrievedUser = optionalUser.get();
-        if(!retrievedUser.getRole().equals(Role.ADMIN)){
+    public List<ConsultResponse> getAllConsults(User user) {
+        if(!user.getRole().equals(Role.ADMIN)){
             throw new UnauthorizedException("You are not authorized to view all consultations.");
         }
+        List<Consultation> allConsultations = consultRepository.findAll();
         if(allConsultations.isEmpty()) {
             throw new UserNotFoundException("No consultations were found.");
         }
-        return allConsultations;
+        return allConsultations.stream().map(ConsultResponse::new).collect(Collectors.toList());
     }
 
     @Override
@@ -156,21 +156,12 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
     @Override
-    public Consultation getConsultById(User user, int id, Consultation consultation) {
-        Optional<Consultation> optionalConsultation = consultRepository.findById(id);
-        Optional<User> optionalUser = userRepository.findById(user.getUserId());
-        if(!optionalConsultation.isPresent()){
+    public Consultation getConsultById(Long id) {
+        Optional<Consultation> consultation = consultRepository.findById(id);
+        if(!consultation.isPresent()){
             throw new ConsultationNotFoundException("No consultation was found.");
         }
-        if(!optionalUser.isPresent()){
-            throw new UserNotFoundException("No user was found.");
-        }
-        Consultation retrievedConsultation = optionalConsultation.get();
-        User retrievedUser = optionalUser.get();
-
-        if (!retrievedUser.getUsername().equals(retrievedConsultation.getUser().getUsername()) || retrievedUser.getRole()!=Role.ADMIN){
-            throw new UnauthorizedException("You are not authorized to view this consultation.");
-        }
+        Consultation retrievedConsultation = consultation.get();
         return retrievedConsultation;
     }
 

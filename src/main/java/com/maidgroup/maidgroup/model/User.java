@@ -43,8 +43,6 @@ public class User {
     private LocalDate dateOfBirth;
     @Enumerated(EnumType.STRING)
     private Role role;
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Consultation> consultations = new ArrayList<>();
     private int age;
 
 }

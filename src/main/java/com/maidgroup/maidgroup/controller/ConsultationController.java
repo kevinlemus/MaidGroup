@@ -8,6 +8,7 @@ import com.maidgroup.maidgroup.model.consultationinfo.ConsultationStatus;
 import com.maidgroup.maidgroup.service.ConsultationService;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.exceptions.*;
+import com.maidgroup.maidgroup.util.dto.Responses.ConsultResponse;
 import jdk.jshell.Snippet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.swing.text.html.Option;
 import java.nio.file.attribute.UserPrincipal;
+import java.security.Principal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -66,15 +68,10 @@ public class ConsultationController {
     }
 
     @GetMapping("/allConsultations")
-    public ResponseEntity<List<Consultation>> getAllConsultations(@AuthenticationPrincipal UserDetails userDetails){
-        try{
-            List<Consultation> allConsultations = consultService.getAllConsults(userRepository.findByUsername(userDetails.getUsername()));
-            return ResponseEntity.status(HttpStatus.OK).body(allConsultations);
-        }catch (ConsultationNotFoundException e){
-            return ResponseEntity.notFound().build();
-        }catch (UnauthorizedException d){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    public @ResponseBody List<ConsultResponse> getAllConsultations(Principal principal){
+        User authUser = userRepository.findByUsername(principal.getName());
+        List<ConsultResponse> allConsultations = consultService.getAllConsults(authUser);
+        return allConsultations;
     }
 
     @GetMapping("/{status}")
@@ -92,10 +89,10 @@ public class ConsultationController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Consultation> getConsultById(@PathVariable("id") int id, @AuthenticationPrincipal UserDetails userDetails){
-        Consultation consultation = consultRepository.findById(id).orElse(null);
-        return new ResponseEntity<Consultation>(consultService.getConsultById((User) userDetails, id, consultation), HttpStatus.OK);
-
+    public ConsultResponse getConsultById(@PathVariable("id") Long id){
+        Consultation consultation = consultService.getConsultById(id);
+        ConsultResponse consultResponse = new ConsultResponse(consultation);
+        return consultResponse;
     }
 
     @GetMapping("/{date}")

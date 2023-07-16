@@ -70,12 +70,6 @@ public class UserController {
         return new ResponseEntity<UserResponse>(userResponse, HttpStatus.CREATED);
     }
 
-    @ExceptionHandler({JsonProcessingException.class})
-    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public @ResponseBody String exceptionInvalidJsonProcessing(JsonProcessingException e){
-        return e.getMessage();
-    }
-
     @PostMapping("/login")
     public UserResponse login(@RequestBody LoginCreds loginCreds, HttpServletResponse response){
         User authUser = userService.login(loginCreds.getUsername(), loginCreds.getPassword());
@@ -89,16 +83,6 @@ public class UserController {
 
         return userResponse;
     }
-
-    @ExceptionHandler({InvalidCredentialsException.class})
-    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public @ResponseBody String exceptionInvalidUserInput(InvalidCredentialsException e){
-        return e.getMessage();
-    }
-
-    @ExceptionHandler({UsernameAlreadyExists.class})
-    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public @ResponseBody String exceptionUsernameExists(UsernameAlreadyExists e) { return e.getMessage(); }
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@RequestBody UserRequest logoutRequest, HttpServletRequest request, HttpServletResponse response){
@@ -178,6 +162,22 @@ public class UserController {
         return "Your account has been deleted";
     }
 
+    @ExceptionHandler({InvalidCredentialsException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String exceptionInvalidUserInput(InvalidCredentialsException e){
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({UsernameAlreadyExists.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String exceptionUsernameExists(UsernameAlreadyExists e) { return e.getMessage(); }
+
+    @ExceptionHandler({JsonProcessingException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String exceptionInvalidJsonProcessing(JsonProcessingException e){
+        return e.getMessage();
+    }
+
     @ExceptionHandler({UserNotFoundException.class})
     @ResponseStatus(value = HttpStatus.NOT_FOUND)
     public @ResponseBody String handleUserNotFoundException(UserNotFoundException e) {
@@ -195,12 +195,12 @@ public class UserController {
     public @ResponseBody String handleInvalidCredentialsException(InvalidCredentialsException e) {
         return e.getMessage();
     }
+
     @ExceptionHandler({InvalidDateException.class})
     @ResponseStatus(value = HttpStatus.BAD_REQUEST)
     public @ResponseBody String handleInvalidDateException(InvalidDateException e) {
         return e.getMessage();
     }
-
 
 }
 

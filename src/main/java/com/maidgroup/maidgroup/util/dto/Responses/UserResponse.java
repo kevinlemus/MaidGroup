@@ -26,7 +26,6 @@ public class UserResponse {
     private Gender gender;
     private LocalDate dateOfBirth;
     private Role role;
-    private List<Consultation> consultations = new ArrayList<>();
     private int age;
 
     public UserResponse(User user) {
@@ -40,7 +39,6 @@ public class UserResponse {
         this.gender = user.getGender();
         this.dateOfBirth = user.getDateOfBirth();
         this.role = user.getRole();
-        this.consultations = user.getConsultations();
         this.age = user.getAge();
     }
 }

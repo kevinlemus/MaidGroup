@@ -17,7 +17,11 @@ import java.util.ArrayList;
 public class Invoice {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
+    private String street;
+    private String city;
+    private String state;
+    private int zipcode;
     private ArrayList<String> serviceName;
     private ArrayList<Double> price;
     private LocalDate date;
@@ -26,6 +30,5 @@ public class Invoice {
     private String clientEmail;
     private String phoneNumber;
     private double totalPrice;
-
 
 }

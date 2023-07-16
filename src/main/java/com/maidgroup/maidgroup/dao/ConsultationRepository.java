@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ConsultationRepository extends JpaRepository<Consultation, Integer> {
+public interface ConsultationRepository extends JpaRepository<Consultation, Long> {
 
     @Query("select c from Consultation c where c.status = :status")
     public List<Consultation> findByStatus(@Param("status") ConsultationStatus consultationStatus);
