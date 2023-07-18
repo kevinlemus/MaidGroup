@@ -8,6 +8,7 @@ import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.Consultation;
 import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.consultationinfo.ConsultationStatus;
+import com.maidgroup.maidgroup.model.consultationinfo.PreferredContact;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.service.ConsultationService;
 import com.maidgroup.maidgroup.service.exceptions.*;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.attribute.UserPrincipal;
+import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -50,14 +52,14 @@ public class ConsultationServiceImpl implements ConsultationService {
 
     @Override
     public Consultation create(Consultation consultation) {
-        int id = consultation.getId();
+        Long id = consultation.getId();
         Consultation retrievedConsultation = consultRepository.findById(id).orElse(null);
         if(retrievedConsultation!=null){
             throw new ConsultationAlreadyExists("Consultation already exists");
         }
         EmailValidator emailValidator = EmailValidator.getInstance();
         if (!emailValidator.isValid(consultation.getEmail())) {
-            throw new RuntimeException("Invalid email address");
+            throw new InvalidEmailException("Invalid email address");
         }
         if(consultation.getFirstName().isEmpty()){
             throw new RuntimeException("First name cannot be empty");
@@ -66,22 +68,22 @@ public class ConsultationServiceImpl implements ConsultationService {
             throw new RuntimeException("Last name cannot be empty");
         }
         if(consultation.getPhoneNumber().isEmpty()){
-            throw new RuntimeException("Must enter a phone number");
+            throw new InvalidPhoneNumberException("Must enter a phone number");
         }
         PhoneNumberUtil phoneNumberUtil = PhoneNumberUtil.getInstance();
         try {
             Phonenumber.PhoneNumber phoneNumber = phoneNumberUtil.parse(consultation.getPhoneNumber(), "US");
             if (!phoneNumberUtil.isValidNumber(phoneNumber)) {
-                throw new RuntimeException("Invalid phone number");
+                throw new InvalidPhoneNumberException("Invalid phone number");
             }
         } catch (NumberParseException e) {
-            throw new RuntimeException("Failed to parse phone number", e);
+            throw new InvalidPhoneNumberException("Failed to parse phone number");
         }
         if(consultation.getPreferredContact()==null){
             throw new RuntimeException("Must select a preferred contact method");
         }
         if(consultation.getDate()==null){
-            throw new RuntimeException("Must select a date for your consultation");
+            throw new InvalidDateException("Must select a date for your consultation");
         }
         if(consultation.getTime()==null){
             throw new RuntimeException("Must select a time for your consultation");
@@ -90,30 +92,189 @@ public class ConsultationServiceImpl implements ConsultationService {
         consultRepository.save(consultation);
         consultation.setStatus(ConsultationStatus.OPEN);
 
+        String uniqueLink = generateUniqueLink();
+        consultation.setUniqueLink(uniqueLink);
+        consultRepository.save(consultation);
+
         String clientMessage = "Your consultation has been booked! We will contact you shortly to confirm details. \n"+consultation+" \n Notifications regarding your consultation will be sent via SMS. Reply CANCEL to cancel your consultation.";
         String adminMessage = "The following consultation has been booked: \n"+consultation;
 
         twilioSMS.sendSMS(consultation.getPhoneNumber(), clientMessage);
         twilioSMS.sendSMS("+3019384728", adminMessage);
 
+        if (consultation.getPreferredContact().equals(PreferredContact.Email)) {
+            String emailMessage = "Your consultation has been booked! We will contact you shortly to confirm details. Here is your unique link to view or cancel your consultation: " + uniqueLink;
+            // send email to user
+        }
+
         return consultation;
     }
 
     @Override
-    public void delete(User user, Consultation consultation) {
-        Optional<User> userOptional = userRepository.findById(user.getUserId());
-        Optional<Consultation> consultOptional = consultRepository.findById(consultation.getId());
+    public Consultation getConsultById(Long id) {
+        Optional<Consultation> consultation = consultRepository.findById(id);
+        if(!consultation.isPresent()){
+            throw new ConsultationNotFoundException("No consultation was found.");
+        }
+        Consultation retrievedConsultation = consultation.get();
+        return retrievedConsultation;
+    }
 
-        if(userOptional.isPresent() && consultOptional.isPresent()){
-            User retrievedUser = userOptional.get();
-            Consultation retrievedConsult = consultOptional.get();
+    @Override
+    public List<Consultation> getConsults(User requester, LocalDate date, ConsultationStatus status, PreferredContact preferredContact, String name, String sort) {
+        List<Consultation> consultations = consultRepository.findAll();
+        if (date != null) {
+            consultations = consultations.stream()
+                    .filter(consultation -> consultation.getDate().equals(date))
+                    .collect(Collectors.toList());
+        }
+        if (status != null) {
+            consultations = consultations.stream()
+                    .filter(consultation -> consultation.getStatus().equals(status))
+                    .collect(Collectors.toList());
+        }
+        if (preferredContact != null) {
+            consultations = consultations.stream()
+                    .filter(consultation -> consultation.getPreferredContact().equals(preferredContact))
+                    .collect(Collectors.toList());
+        }
+        if (name != null) {
+            consultations = consultations.stream()
+                    .filter(consultation -> consultation.getFirstName().contains(name) || consultation.getLastName().contains(name))
+                    .collect(Collectors.toList());
+        }
+        Optional<User> user = userRepository.findById(requester.getUserId());
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
 
-            if (retrievedUser.getUsername().equals(consultation.getUser().getUsername()) || retrievedUser.getRole() == Role.ADMIN) {
-                consultRepository.delete(retrievedConsult);
+        if (user.isPresent()) {
+            if (isAdmin) {
+                if (consultations.isEmpty()) {
+                    throw new ConsultationNotFoundException("No consultations were found.");
+                }
+                if (sort != null) {
+                    switch (sort) {
+                        case "recent":
+                            consultations.sort(Comparator.comparing(Consultation::getDate).reversed());
+                            break;
+                        case "oldest":
+                            consultations.sort(Comparator.comparing(Consultation::getDate));
+                            break;
+                        case "nameAsc":
+                            consultations.sort(Comparator.comparing(Consultation::getLastName)
+                                    .thenComparing(Consultation::getFirstName));
+                            break;
+                        case "nameDesc":
+                            consultations.sort(Comparator.comparing(Consultation::getLastName)
+                                    .thenComparing(Consultation::getFirstName).reversed());
+                            break;
+                        case "statusAsc":
+                            consultations.sort(Comparator.comparing(Consultation::getStatus));
+                            break;
+                        case "statusDesc":
+                            consultations.sort(Comparator.comparing(Consultation::getStatus).reversed());
+                            break;
+                        case "contactAsc":
+                            consultations.sort(Comparator.comparing(Consultation::getPreferredContact));
+                            break;
+                        case "contactDesc":
+                            consultations.sort(Comparator.comparing(Consultation::getPreferredContact).reversed());
+                            break;
+                    }
+                }
+                return consultations;
+            } else {
+                throw new UnauthorizedException("You are not authorized to retrieve these consultations.");
             }
+        } else {
+            throw new UserNotFoundException("No user was found.");
         }
     }
 
+    @Override
+    public void delete(Long consultId, User requester) {
+        Optional<Consultation> consultToDelete = consultRepository.findById(consultId);
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
+        if(consultToDelete.isPresent()){
+            if (isAdmin) {
+                consultRepository.delete(consultToDelete.get());
+            } else {
+                throw new UnauthorizedException("You are not authorized to delete consultations.");
+            }
+        } else {
+            throw new ConsultationNotFoundException("No consultation with the id "+ consultId +"exists.");
+        }
+    }
+
+    @Override
+    public void deleteConsultations(User requester, List<Long> ids) {
+        Optional<User> user = userRepository.findById(requester.getUserId());
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
+
+        if (user.isPresent()) {
+            if (isAdmin) {
+                consultRepository.deleteAllById(ids);
+            } else {
+                throw new UnauthorizedException("You are not authorized to delete these consultations.");
+            }
+        } else {
+            throw new UserNotFoundException("No user was found.");
+        }
+    }
+
+    @Override
+    public void cancelConsultation(Long consultId, String from, String body) {
+        Optional<Consultation> optionalConsultation;
+        if (consultId != null) {
+            optionalConsultation = consultRepository.findById(consultId);
+        } else if (from != null) {
+            optionalConsultation = consultRepository.findByPhoneNumber(from);
+            if (!optionalConsultation.isPresent()) {
+                throw new ConsultationNotFoundException("There is no consultation associated with this phone number.");
+            }
+            if (!body.equalsIgnoreCase("CANCEL")) {
+                throw new InvalidSmsMessageException("Invalid message.");
+            }
+        } else {
+            throw new ConsultationNotFoundException("No consultation was found.");
+        }
+        if(!optionalConsultation.isPresent()){
+            throw new ConsultationNotFoundException("There is no consultation associated with this id or phone number.");
+        }
+        Consultation consultation = optionalConsultation.get();
+        consultation.setStatus(ConsultationStatus.CANCELLED);
+        consultRepository.save(consultation);
+        String clientMessage = "Your consultation has successfully been cancelled. Thank you for considering our services.";
+        String adminMessage = "The following consultation has been cancelled: \n" + consultation;
+        twilioSMS.sendSMS(from, clientMessage);
+        twilioSMS.sendSMS("+3019384728", adminMessage);
+    }
+
+    @Override
+    public void cancelConsultationUniqueLink(String uniqueLink) {
+        Optional<Consultation> optionalConsultation = consultRepository.findByUniqueLink(uniqueLink);
+        if (!optionalConsultation.isPresent()) {
+            throw new ConsultationNotFoundException("There is no consultation associated with this unique link.");
+        }
+        Consultation consultation = optionalConsultation.get();
+        consultation.setStatus(ConsultationStatus.CANCELLED);
+        consultRepository.save(consultation);
+        String clientMessage = "Your consultation has successfully been cancelled. Thank you for considering our services.";
+        String adminMessage = "The following consultation has been cancelled: \n" + consultation;
+        // send email to user
+        twilioSMS.sendSMS("+3019384728", adminMessage);
+    }
+
+    public String generateUniqueLink() {
+        SecureRandom random = new SecureRandom();
+        byte[] bytes = new byte[24];
+        random.nextBytes(bytes);
+        String uniqueLink = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        return uniqueLink;
+    }
+
+
+
+/*
     @Override
     public List<ConsultResponse> getAllConsults(User user) {
         if(!user.getRole().equals(Role.ADMIN)){
@@ -144,127 +305,46 @@ public class ConsultationServiceImpl implements ConsultationService {
             throw new UserNotFoundException("No user was found.");
         }
     }
-
     @Override
-    public Consultation getConsultById(Long id) {
-        Optional<Consultation> consultation = consultRepository.findById(id);
-        if(!consultation.isPresent()){
-            throw new ConsultationNotFoundException("No consultation was found.");
+    public List<Consultation> getConsultByDate(User requester, LocalDate date, String sort) {
+        List<Consultation> consultations;
+        if (date != null) {
+            consultations = consultRepository.findByDate(date);
+        } else {
+            consultations = consultRepository.findAll();
         }
-        Consultation retrievedConsultation = consultation.get();
-        return retrievedConsultation;
-    }
+        Optional<User> user = userRepository.findById(requester.getUserId());
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
 
-    @Override
-    public List<Consultation> getConsultByDate(User user, LocalDate date) {
-        Optional<List<Consultation>> optionalConsultations = Optional.ofNullable(consultRepository.findByDate(date));
-        Optional<User> optionalUser = userRepository.findById(user.getUserId());
-
-        if(!optionalConsultations.isPresent()){
-            throw new RuntimeException("No consultations were found");
-        }
-        if(!optionalUser.isPresent()){
-            throw new RuntimeException("No user was found");
-        }
-        User retrievedUser = optionalUser.get();
-        List<Consultation> retrievedConsultations = optionalConsultations.get();
-
-        if(!retrievedUser.getRole().equals(Role.ADMIN)){
-            List<Consultation> userConsultations = new ArrayList<>();
-            for(Consultation c : retrievedConsultations){
-                if(c.getUser().getUsername().equals(retrievedUser.getUsername())){
-                    userConsultations.add(c);
+        if (user.isPresent()) {
+            if (isAdmin) {
+                if (consultations.isEmpty()) {
+                    throw new ConsultationNotFoundException("No consultations with the date " + date + " were found.");
                 }
-            }
-
-            if(userConsultations.isEmpty()){
-                throw new RuntimeException("You have no consultations for "+date+".");
-            }
-            return userConsultations;
-        }
-
-        return retrievedConsultations;
-    }
-
-    @Override
-    public Consultation update(User user, Consultation consultation) {
-        Optional<User> optionalUser = userRepository.findById(user.getUserId());
-        Optional<Consultation> optionalConsultation = consultRepository.findById(consultation.getId());
-        if(!optionalUser.isPresent()){
-            throw new UserNotFoundException("No user was found");
-        }
-        if(!optionalConsultation.isPresent()){
-            throw new ConsultationNotFoundException("No consultation was found");
-        }
-
-        User retrievedUser = optionalUser.orElseThrow();
-        Consultation retrievedConsultation = optionalConsultation.get();
-
-        if(!retrievedConsultation.getUser().getUsername().equals(retrievedUser.getUsername())){
-            throw new UnauthorizedException("You may only update consultations under your account");
-        }
-
-        if(consultation.getFirstName()!=null){
-            retrievedConsultation.setFirstName(consultation.getFirstName());
-        }
-        if(consultation.getLastName()!=null){
-            retrievedConsultation.setLastName(consultation.getLastName());
-        }
-        if(consultation.getEmail()!=null){
-            EmailValidator emailValidator = EmailValidator.getInstance();
-            if (!emailValidator.isValid(consultation.getEmail())) {
-                throw new InvalidEmailException("Invalid email address");
-            }
-            retrievedConsultation.setEmail(consultation.getEmail());
-        }
-        if(consultation.getPhoneNumber()!=null){
-            PhoneNumberUtil phoneNumberUtil = PhoneNumberUtil.getInstance();
-            try {
-                Phonenumber.PhoneNumber phoneNumber = phoneNumberUtil.parse(consultation.getPhoneNumber(), "US");
-                if (!phoneNumberUtil.isValidNumber(phoneNumber)) {
-                    throw new InvalidPhoneNumberException("Invalid phone number");
+                if (sort != null) {
+                    switch (sort) {
+                        case "recent":
+                            consultations.sort(Comparator.comparing(Consultation::getDate).reversed());
+                            break;
+                        case "oldest":
+                            consultations.sort(Comparator.comparing(Consultation::getDate));
+                            break;
+                        case "today":
+                            LocalDate today = LocalDate.now();
+                            consultations = consultations.stream()
+                                    .filter(consultation -> consultation.getDate().equals(today))
+                                    .collect(Collectors.toList());
+                            break;
+                    }
                 }
-            } catch (NumberParseException e) {
-                throw new RuntimeException("Failed to parse phone number", e);
+                return consultations;
+            } else {
+                throw new UnauthorizedException("You are not authorized to retrieve these consultations.");
             }
-            retrievedConsultation.setPhoneNumber(consultation.getPhoneNumber());
+        } else {
+            throw new UserNotFoundException("No user was found.");
         }
-        if(consultation.getMessage()!=null){
-            retrievedConsultation.setMessage(consultation.getMessage());
-        }
-        if(consultation.getDate()!=null){
-            retrievedConsultation.setDate(consultation.getDate());
-        }
-        if(consultation.getTime()!=null){
-            retrievedConsultation.setTime(consultation.getTime());
-        }
-        if(consultation.getPreferredContact()!=null){
-            retrievedConsultation.setPreferredContact(consultation.getPreferredContact());
-        }
-        if(consultation.getStatus()!=null){
-            retrievedConsultation.setStatus(consultation.getStatus());
-        }
-        return retrievedConsultation;
     }
-
-    @Override
-    public void cancelConsultation(String from, String body) {
-        Optional<Consultation> optionalConsultation = consultRepository.findByPhoneNumber(from);
-        if(!optionalConsultation.isPresent()){
-            throw new ConsultationNotFoundException("There is no consultation associated with this phone number.");
-        }
-        if (!body.equalsIgnoreCase("CANCEL")) {
-            throw new InvalidSmsMessageException("Invalid message.");
-        }
-            Consultation consultation = optionalConsultation.get();
-            consultation.setStatus(ConsultationStatus.CANCELLED);
-            consultRepository.save(consultation);
-            String clientMessage = "Your consultation has successfully been cancelled.Thank you for considering our services.";
-            String adminMessage = "The following consultation has been cancelled: \n"+consultation;
-            twilioSMS.sendSMS(from, clientMessage);
-            twilioSMS.sendSMS("+3019384728", adminMessage);
-    }
-
-
+ */
 }
 

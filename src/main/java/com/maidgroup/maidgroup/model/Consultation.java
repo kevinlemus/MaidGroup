@@ -29,4 +29,5 @@ public class Consultation {
     PreferredContact preferredContact;
     @Enumerated(EnumType.STRING)
     private ConsultationStatus status;
+    private String uniqueLink;
 }

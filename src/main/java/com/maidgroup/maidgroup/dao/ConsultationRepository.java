@@ -26,4 +26,6 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
     @Query("select c from Consultation c where c.phoneNumber = :phoneNumber")
     public Optional<Consultation> findByPhoneNumber(@Param("phoneNumber") String phoneNumber);
 
+    //Derived query
+    Optional<Consultation> findByUniqueLink(String uniqueLink);
 }
