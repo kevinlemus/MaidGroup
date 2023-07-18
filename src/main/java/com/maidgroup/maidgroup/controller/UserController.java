@@ -23,6 +23,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.security.Principal;
 import java.util.List;
 
@@ -47,7 +49,7 @@ public class UserController {
 
     @PostMapping("/registerUser")
     @PreAuthorize("permitAll")
-    public ResponseEntity<UserResponse> register(@RequestBody UserRequest userRequest) {
+    public UserResponse register(@RequestBody UserRequest userRequest) {
         // Create a User object from the UserRequest object
         User user = new User();
         user.setUsername(userRequest.getUsername());
@@ -67,7 +69,7 @@ public class UserController {
         // Create a UserResponse object from the registeredUser object
         UserResponse userResponse = new UserResponse(registeredUser);
 
-        return new ResponseEntity<UserResponse>(userResponse, HttpStatus.CREATED);
+        return userResponse;
     }
 
     @PostMapping("/login")
@@ -85,18 +87,17 @@ public class UserController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestBody UserRequest logoutRequest, HttpServletRequest request, HttpServletResponse response){
+    public String logout(@RequestBody UserRequest logoutRequest, HttpServletRequest request, HttpServletResponse response){
         String jwt = logoutRequest.getJwt();
         if(jwt == null) {
-            if (jwt == null) {
-                jwt = extractJwt(request);
-            }
+            jwt = extractJwt(request);
+
         }
         userService.logout(jwt);
         Cookie cookie = new Cookie("jwt", null);
         cookie.setMaxAge(0);
         response.addCookie(cookie);
-        return ResponseEntity.status(HttpStatus.OK).build();
+        return "You have successfully logged out.";
     }
 
     private String extractJwt(HttpServletRequest request){
@@ -111,11 +112,11 @@ public class UserController {
     }
 
     @PutMapping("/{userId}")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable Long userId, @RequestBody UserRequest userRequest){
+    public UserResponse updateUser(@PathVariable Long userId, @RequestBody UserRequest userRequest){
         // Check if the user is authenticated
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
-            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         }
 
         User user = new User();
@@ -135,9 +136,7 @@ public class UserController {
         }
 
         User updatedUser = userService.updateUser(user);
-        UserResponse userResponse = new UserResponse(updatedUser);
-
-        return new ResponseEntity<>(userResponse, HttpStatus.OK);
+        return new UserResponse(updatedUser);
     }
 
     @GetMapping("/getAllUsers")

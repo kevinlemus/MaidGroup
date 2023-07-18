@@ -27,6 +27,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,6 +51,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         this.twilioSMS = twilioSMS;
     }
 
+    @Transactional
     @Override
     public Consultation create(Consultation consultation) {
         Long id = consultation.getId();
@@ -62,10 +64,10 @@ public class ConsultationServiceImpl implements ConsultationService {
             throw new InvalidEmailException("Invalid email address");
         }
         if(consultation.getFirstName().isEmpty()){
-            throw new RuntimeException("First name cannot be empty");
+            throw new InvalidNameException("First name cannot be empty");
         }
         if(consultation.getLastName().isEmpty()){
-            throw new RuntimeException("Last name cannot be empty");
+            throw new InvalidNameException("Last name cannot be empty");
         }
         if(consultation.getPhoneNumber().isEmpty()){
             throw new InvalidPhoneNumberException("Must enter a phone number");
@@ -80,13 +82,13 @@ public class ConsultationServiceImpl implements ConsultationService {
             throw new InvalidPhoneNumberException("Failed to parse phone number");
         }
         if(consultation.getPreferredContact()==null){
-            throw new RuntimeException("Must select a preferred contact method");
+            throw new NullPreferredContactException("Must select a preferred contact method");
         }
         if(consultation.getDate()==null){
             throw new InvalidDateException("Must select a date for your consultation");
         }
         if(consultation.getTime()==null){
-            throw new RuntimeException("Must select a time for your consultation");
+            throw new InvalidTimeException("Must select a time for your consultation");
         }
 
         consultRepository.save(consultation);
@@ -110,6 +112,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         return consultation;
     }
 
+    @Transactional
     @Override
     public Consultation getConsultById(Long id) {
         Optional<Consultation> consultation = consultRepository.findById(id);
@@ -120,6 +123,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         return retrievedConsultation;
     }
 
+    @Transactional
     @Override
     public List<Consultation> getConsults(User requester, LocalDate date, ConsultationStatus status, PreferredContact preferredContact, String name, String sort) {
         List<Consultation> consultations = consultRepository.findAll();
@@ -190,6 +194,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         }
     }
 
+    @Transactional
     @Override
     public void delete(Long consultId, User requester) {
         Optional<Consultation> consultToDelete = consultRepository.findById(consultId);
@@ -205,6 +210,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         }
     }
 
+    @Transactional
     @Override
     public void deleteConsultations(User requester, List<Long> ids) {
         Optional<User> user = userRepository.findById(requester.getUserId());
@@ -221,6 +227,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         }
     }
 
+    @Transactional
     @Override
     public void cancelConsultation(Long consultId, String from, String body) {
         Optional<Consultation> optionalConsultation;
@@ -249,6 +256,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         twilioSMS.sendSMS("+3019384728", adminMessage);
     }
 
+    @Transactional
     @Override
     public void cancelConsultationUniqueLink(String uniqueLink) {
         Optional<Consultation> optionalConsultation = consultRepository.findByUniqueLink(uniqueLink);

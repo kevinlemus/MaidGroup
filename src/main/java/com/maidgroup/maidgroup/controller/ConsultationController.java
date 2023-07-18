@@ -49,9 +49,10 @@ public class ConsultationController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<Consultation> createConsultation(@RequestBody Consultation consultation){
-        consultService.create(consultation);
-        return ResponseEntity.status(HttpStatus.CREATED).body(consultation);
+    public ConsultResponse createConsultation(@RequestBody Consultation consultation){
+        Consultation consult = consultService.create(consultation);
+        ConsultResponse consultResponse = new ConsultResponse(consult);
+        return consultResponse;
     }
 
     @GetMapping("/{id}")
@@ -69,9 +70,10 @@ public class ConsultationController {
     }
 
     @DeleteMapping
-    public void deleteConsultations(Principal principal, @RequestParam(value = "ids") List<Long> ids) {
+    public String deleteConsultations(Principal principal, @RequestParam(value = "ids") List<Long> ids) {
         User authUser = userRepository.findByUsername(principal.getName());
         consultService.deleteConsultations(authUser, ids);
+        return "The selected consultations have been deleted.";
     }
 
     @DeleteMapping("/{id}")
@@ -97,6 +99,76 @@ public class ConsultationController {
         consultService.cancelConsultationUniqueLink(uniqueLink);
         return "This consultation has been cancelled.";
     }
+
+    @ExceptionHandler({ConsultationAlreadyExists.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handleConsultationAlreadyExists(ConsultationAlreadyExists e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({ConsultationNotFoundException.class})
+    @ResponseStatus(value = HttpStatus.NOT_FOUND)
+    public @ResponseBody String handleConsultationNotFoundException(ConsultationNotFoundException e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({InvalidDateException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handleInvalidDateException(InvalidDateException e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({InvalidEmailException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handleInvalidEmailException(InvalidEmailException e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({InvalidNameException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handleInvalidNameException(InvalidNameException e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({InvalidPhoneNumberException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handleInvalidPhoneNumberException(InvalidPhoneNumberException e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({InvalidSmsMessageException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handleInvalidSmsException(InvalidSmsMessageException e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({InvalidTimeException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handleInvalidTimeException(InvalidTimeException e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({NullPreferredContactException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handleNullPreferredContactException(NullPreferredContactException e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({UserNotFoundException.class})
+    @ResponseStatus(value = HttpStatus.NOT_FOUND)
+    public @ResponseBody String handleUserNotFoundException(UserNotFoundException e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({UnauthorizedException.class})
+    @ResponseStatus(value = HttpStatus.UNAUTHORIZED)
+    public @ResponseBody String handleUnauthorizedException(UnauthorizedException e) {
+        return e.getMessage();
+    }
+
+
+
+
 
 
 
