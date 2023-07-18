@@ -22,6 +22,8 @@ public class ConsultResponse {
     private LocalTime time;
     private PreferredContact preferredContact;
     private ConsultationStatus status;
+    private String uniqueLink;
+
 
     public ConsultResponse (Consultation consultation){
         this.id = consultation.getId();
@@ -34,5 +36,6 @@ public class ConsultResponse {
         this.time = consultation.getTime();
         this.preferredContact = consultation.getPreferredContact();
         this.status = consultation.getStatus();
+        this.uniqueLink = consultation.getUniqueLink();
     }
 }

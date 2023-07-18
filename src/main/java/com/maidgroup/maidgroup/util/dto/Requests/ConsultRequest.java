@@ -23,4 +23,6 @@ public class ConsultRequest {
     private LocalTime time;
     private PreferredContact preferredContact;
     private ConsultationStatus status;
+    private String uniqueLink;
+
 }
