@@ -1,14 +1,14 @@
 package com.maidgroup.maidgroup.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.maidgroup.maidgroup.model.invoiceinfo.InvoiceItem;
+import com.maidgroup.maidgroup.model.invoiceinfo.PaymentStatus;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.List;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,17 +18,21 @@ public class Invoice {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    private String orderId;
     private String street;
     private String city;
     private String state;
     private int zipcode;
-    private ArrayList<String> serviceName;
-    private ArrayList<Double> price;
     private LocalDate date;
     private String firstName;
-    private String LastName;
+    private String lastName;
     private String clientEmail;
     private String phoneNumber;
     private double totalPrice;
-
+    private PaymentStatus status;
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+    @OneToMany(cascade = CascadeType.ALL)
+    private List<InvoiceItem> items;
 }

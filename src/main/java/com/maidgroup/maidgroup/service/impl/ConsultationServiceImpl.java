@@ -11,27 +11,13 @@ import com.maidgroup.maidgroup.model.consultationinfo.ConsultationStatus;
 import com.maidgroup.maidgroup.model.consultationinfo.PreferredContact;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.service.ConsultationService;
+import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.exceptions.*;
-import com.maidgroup.maidgroup.util.dto.Responses.ConsultResponse;
 import com.maidgroup.maidgroup.util.twilio.TwilioSMS;
-import com.twilio.Twilio;
-import com.twilio.rest.api.v2010.account.Message;
-import com.twilio.type.PhoneNumber;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.attribute.UserPrincipal;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.*;
@@ -43,12 +29,14 @@ public class ConsultationServiceImpl implements ConsultationService {
     UserRepository userRepository;
     ConsultationRepository consultRepository;
     TwilioSMS twilioSMS;
+    EmailService emailService;
 
     @Autowired
-    public ConsultationServiceImpl(UserRepository userRepository, ConsultationRepository consultRepository, TwilioSMS twilioSMS) {
+    public ConsultationServiceImpl(UserRepository userRepository, ConsultationRepository consultRepository, TwilioSMS twilioSMS, EmailService emailService) {
         this.userRepository = userRepository;
         this.consultRepository = consultRepository;
         this.twilioSMS = twilioSMS;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -101,22 +89,28 @@ public class ConsultationServiceImpl implements ConsultationService {
         String clientMessage = "Your consultation has been booked! We will contact you shortly to confirm details. \n"+consultation+" \n Notifications regarding your consultation will be sent via SMS. Reply CANCEL to cancel your consultation.";
         String adminMessage = "The following consultation has been booked: \n"+consultation;
 
-        twilioSMS.sendSMS(consultation.getPhoneNumber(), clientMessage);
-        twilioSMS.sendSMS("+3019384728", adminMessage);
+        if (consultation.getPreferredContact().equals(PreferredContact.Call) || consultation.getPreferredContact().equals(PreferredContact.Text)) {
+            twilioSMS.sendSMS(consultation.getPhoneNumber(), clientMessage);
+        }
 
         if (consultation.getPreferredContact().equals(PreferredContact.Email)) {
             String emailMessage = "Your consultation has been booked! We will contact you shortly to confirm details. Here is your unique link to view or cancel your consultation: " + uniqueLink;
             // send email to user
+            emailService.sendEmail(consultation.getEmail(), "Consultation Booked", emailMessage);
         }
 
+        twilioSMS.sendSMS("+3019384728", adminMessage);
+        emailService.sendEmail("info@maidgroup.com", "Consultation Booked", adminMessage);
+
         return consultation;
+
     }
 
     @Transactional
     @Override
     public Consultation getConsultById(Long id) {
         Optional<Consultation> consultation = consultRepository.findById(id);
-        if(!consultation.isPresent()){
+        if(consultation.isEmpty()){
             throw new ConsultationNotFoundException("No consultation was found.");
         }
         Consultation retrievedConsultation = consultation.get();
@@ -235,7 +229,7 @@ public class ConsultationServiceImpl implements ConsultationService {
             optionalConsultation = consultRepository.findById(consultId);
         } else if (from != null) {
             optionalConsultation = consultRepository.findByPhoneNumber(from);
-            if (!optionalConsultation.isPresent()) {
+            if (optionalConsultation.isEmpty()) {
                 throw new ConsultationNotFoundException("There is no consultation associated with this phone number.");
             }
             if (!body.equalsIgnoreCase("CANCEL")) {
@@ -244,7 +238,7 @@ public class ConsultationServiceImpl implements ConsultationService {
         } else {
             throw new ConsultationNotFoundException("No consultation was found.");
         }
-        if(!optionalConsultation.isPresent()){
+        if(optionalConsultation.isEmpty()){
             throw new ConsultationNotFoundException("There is no consultation associated with this id or phone number.");
         }
         Consultation consultation = optionalConsultation.get();
@@ -254,13 +248,14 @@ public class ConsultationServiceImpl implements ConsultationService {
         String adminMessage = "The following consultation has been cancelled: \n" + consultation;
         twilioSMS.sendSMS(from, clientMessage);
         twilioSMS.sendSMS("+3019384728", adminMessage);
+        emailService.sendEmail("info@maidgroup.com", "Consultation Cancelled", adminMessage);
     }
 
     @Transactional
     @Override
     public void cancelConsultationUniqueLink(String uniqueLink) {
         Optional<Consultation> optionalConsultation = consultRepository.findByUniqueLink(uniqueLink);
-        if (!optionalConsultation.isPresent()) {
+        if (optionalConsultation.isEmpty()) {
             throw new ConsultationNotFoundException("There is no consultation associated with this unique link.");
         }
         Consultation consultation = optionalConsultation.get();
@@ -269,7 +264,9 @@ public class ConsultationServiceImpl implements ConsultationService {
         String clientMessage = "Your consultation has successfully been cancelled. Thank you for considering our services.";
         String adminMessage = "The following consultation has been cancelled: \n" + consultation;
         // send email to user
+        emailService.sendEmail(consultation.getEmail(), "Consultation Cancelled", clientMessage);
         twilioSMS.sendSMS("+3019384728", adminMessage);
+        emailService.sendEmail("info@maidgroup.com", "Consultation Cancelled", adminMessage);
     }
 
     public String generateUniqueLink() {
