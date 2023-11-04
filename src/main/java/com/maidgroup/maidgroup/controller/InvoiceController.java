@@ -28,11 +28,14 @@ public class InvoiceController {
         this.emailService = emailService;
     }
 
-    @PostMapping
+    @PostMapping("/create")
     public String createInvoice(@RequestBody Invoice invoice) {
 
             // validate invoice fields
             invoiceService.validateInvoice(invoice);
+
+            // set invoice status to UNPAID
+            invoice.setStatus((PaymentStatus.UNPAID));
 
             // generate payment link and send it to user
             String paymentLink = invoiceService.create(invoice);

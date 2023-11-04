@@ -10,6 +10,7 @@ import com.maidgroup.maidgroup.service.exceptions.InvalidInvoiceException;
 import com.maidgroup.maidgroup.util.payment.PaymentLinkGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -27,7 +28,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         this.paymentLinkGenerator = paymentLinkGenerator;
     }
 
-    @Override
+    @Transactional
+    @Override //Checking for all invoice information
     public void validateInvoice(Invoice invoice) {
         if (invoice.getFirstName() == null || invoice.getFirstName().isEmpty()) {
             throw new InvalidInvoiceException("Client first name is required");
@@ -58,6 +60,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
     }
 
+    @Transactional
     @Override
     public String create(Invoice invoice) {
         // generate payment link
@@ -73,6 +76,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         return paymentLink;
     }
 
+    @Transactional
     @Override
     public void completePayment(Invoice invoice) {
         // save invoice to database
