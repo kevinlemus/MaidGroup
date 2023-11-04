@@ -9,7 +9,6 @@ import com.maidgroup.maidgroup.service.InvoiceService;
 import com.maidgroup.maidgroup.service.exceptions.InvalidInvoiceException;
 import com.maidgroup.maidgroup.util.payment.PaymentLinkGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -58,8 +57,6 @@ public class InvoiceServiceImpl implements InvoiceService {
             throw new InvalidInvoiceException("Service/Product is required");
         }
     }
-
-
 
     @Override
     public String create(Invoice invoice) {
@@ -114,6 +111,5 @@ public class InvoiceServiceImpl implements InvoiceService {
     public Invoice update(User user, Invoice invoice) {
         return null;
     }
-
 
 }

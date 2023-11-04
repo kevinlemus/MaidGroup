@@ -33,6 +33,6 @@ public class Invoice {
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
-    @OneToMany(cascade = CascadeType.ALL)
+    @ElementCollection
     private List<InvoiceItem> items;
 }

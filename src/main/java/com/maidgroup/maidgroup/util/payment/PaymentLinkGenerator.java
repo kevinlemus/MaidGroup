@@ -16,12 +16,12 @@ import java.util.stream.Collectors;
 
 @Component
 public class PaymentLinkGenerator {
-    @Value("${square.access-token}")
+    @Value("${square.access-token}") //connects the program with your square account
     private String squareAccessToken;
-    @Value("${square.location-id}")
+    @Value("${square.location-id}") //connects the program with the specific project on your square account
     private String squareLocationId;
-    @Value("${square.redirect-url}")
-    private String redirectUrl;
+    /*@Value("${square.redirect-url}")
+    private String redirectUrl;*/
 
     public String generatePaymentLink(Invoice invoice) {
         // Create Square client
@@ -51,7 +51,7 @@ public class PaymentLinkGenerator {
                 new CreateOrderRequest.Builder()
                         .order(order)
                         .build())
-                .redirectUrl(redirectUrl)
+                //.redirectUrl(redirectUrl)
                 .build();
 
         try {

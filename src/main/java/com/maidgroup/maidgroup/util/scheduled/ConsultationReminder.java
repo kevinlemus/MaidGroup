@@ -15,9 +15,14 @@ import java.util.List;
 @Component
 public class ConsultationReminder {
 
+    /* We are sending out reminders to clients when they have upcoming consultations. Once the consultation is in
+    24 hours, a reminder is sent out to the client. */
+
     @Autowired
     private ConsultationRepository consultRepository;
 
+    //The fixed rate determines how often this method is to be invoked. 3,600,000 in milliseconds translates to 60 minutes/1 hour.
+    //This method is scheduled to be invoked once every hour.
     @Scheduled(fixedRate = 3600000)
     public void sendConsultationReminders() {
         LocalDateTime now = LocalDateTime.now();

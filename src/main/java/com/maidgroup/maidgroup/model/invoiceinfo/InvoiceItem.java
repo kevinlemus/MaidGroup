@@ -1,9 +1,11 @@
 package com.maidgroup.maidgroup.model.invoiceinfo;
 
+import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+@Embeddable
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
