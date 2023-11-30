@@ -50,10 +50,17 @@ public class WebSecurityConfig {
                 .requestMatchers(new AntPathRequestMatcher("/invoices/webhook")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/delete")).authenticated()
                 .requestMatchers(new AntPathRequestMatcher("/getAllUsers")).hasAuthority("ADMIN")
+                .requestMatchers(new AntPathRequestMatcher("/maidgroup/v3/**"), new AntPathRequestMatcher("/maidgroup/swagger-ui/**")).permitAll()
+                .requestMatchers(new AntPathRequestMatcher("/swagger-ui/**")).permitAll()
+                .requestMatchers(new AntPathRequestMatcher("/v3/api-docs/swagger-config")).permitAll()
+                .requestMatchers(new AntPathRequestMatcher("/v3/api-docs/controller-api")).permitAll()
+                .requestMatchers(new AntPathRequestMatcher("/error")).permitAll()
                 .anyRequest().authenticated()
                 .and()
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
+
+
 
 }
