@@ -29,6 +29,7 @@ public class Invoice {
     private String clientEmail;
     private String phoneNumber;
     private double totalPrice;
+    @Enumerated(EnumType.STRING)
     private PaymentStatus status;
     @ManyToOne
     @JoinColumn(name = "user_id")

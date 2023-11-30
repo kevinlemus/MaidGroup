@@ -8,24 +8,52 @@ import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.InvoiceService;
 import com.maidgroup.maidgroup.service.exceptions.InvalidInvoiceException;
 import com.maidgroup.maidgroup.util.payment.PaymentLinkGenerator;
+import com.squareup.square.Environment;
+import com.squareup.square.SquareClient;
+import com.squareup.square.models.*;
+
+import com.squareup.square.exceptions.ApiException;
+import com.squareup.square.models.Error;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
+@Log4j2
 @Service
 public class InvoiceServiceImpl implements InvoiceService {
 
     InvoiceRepository invoiceRepository;
     EmailService emailService;
     private PaymentLinkGenerator paymentLinkGenerator;
+    private SquareClient squareClient;
+    @Value("${square.location-id}")
+    private String squareLocationId;
+    @Value("${square.access-token}")
+    private String squareAccessToken;
 
     @Autowired
     public InvoiceServiceImpl(InvoiceRepository invoiceRepository, EmailService emailService, PaymentLinkGenerator paymentLinkGenerator) {
         this.invoiceRepository = invoiceRepository;
         this.emailService = emailService;
         this.paymentLinkGenerator = paymentLinkGenerator;
+
+    }
+
+    @PostConstruct
+    public void init() {
+        this.squareClient = new SquareClient.Builder()
+                .environment(Environment.SANDBOX) // or Environment.PRODUCTION
+                .accessToken(squareAccessToken)
+                .build();
     }
 
     @Transactional
@@ -62,9 +90,50 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Transactional
     @Override
-    public String create(Invoice invoice) {
+    public String create(Invoice invoice, String idempotencyKey) {
+        // Create line items from invoice items
+        List<OrderLineItem> lineItems = invoice.getItems().stream()
+                .map(item -> new OrderLineItem.Builder("1")
+                        .name(item.getName())
+                        .basePriceMoney(new Money.Builder()
+                                .amount((long) (item.getPrice() * 100))
+                                .currency("USD")
+                                .build())
+                        .build())
+                .collect(Collectors.toList());
+
+        // Create order
+        Order order = new Order.Builder(squareLocationId)
+                .lineItems(lineItems)
+                .build();
+        CreateOrderRequest createOrderRequest = new CreateOrderRequest.Builder()
+                .order(order)
+                .build();
+
+        String orderId = null;
+
+        try {
+            CreateOrderResponse createOrderResponse = squareClient.getOrdersApi().createOrder(createOrderRequest);
+            // Get orderId from response
+            orderId = createOrderResponse.getOrder().getId();
+            System.out.println("Order Id from Square API: " + orderId);
+            // Set orderId in invoice
+            invoice.setOrderId(orderId);
+        } catch (ApiException e) {
+            System.out.println("Errors: " + e.getErrors());
+            throw new RuntimeException("Failed to create order", e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // set invoice status to UNPAID
+        invoice.setStatus(PaymentStatus.UNPAID);
+
+        // save invoice to database
+        invoiceRepository.save(invoice);
+
         // generate payment link
-        String paymentLink = paymentLinkGenerator.generatePaymentLink(invoice);
+        String paymentLink = paymentLinkGenerator.generatePaymentLink(invoice, idempotencyKey, order);
 
         // send payment link to user
         if (invoice.getClientEmail() != null) {
@@ -73,17 +142,53 @@ public class InvoiceServiceImpl implements InvoiceService {
             emailService.sendEmail(invoice.getClientEmail(), subject, body);
         }
 
+        // make an asynchronous call using Square SDK
+        squareClient.getLocationsApi().listLocationsAsync()
+                .thenAccept(result -> {
+                    System.out.println("Successfully called List Locations");
+                    System.out.println("Request:\n" + result.getContext().getRequest());
+                    System.out.println("Response:\n" + result.getContext().getResponse());
+                })
+                .exceptionally(exception -> {
+                    System.out.println("Failed to make the request");
+                    try {
+                        throw exception.getCause();
+                    } catch (ApiException ae) {
+                        System.out.println("ApiException occurred");
+                        for (Error err : ae.getErrors()) {
+                            System.out.println(err.getCategory());
+                            System.out.println(err.getCode());
+                            System.out.println(err.getDetail());
+                        }
+                    } catch (Throwable t) {
+                        System.out.println("Other exception occurred");
+                        t.printStackTrace();
+                    }
+                    return null;
+                })
+                .join();
+
         return paymentLink;
     }
 
     @Transactional
     @Override
-    public void completePayment(Invoice invoice) {
+    public void completePayment(Invoice invoice, String paymentStatus) {
+        // check if payment was successful
+        if ("COMPLETED".equals(paymentStatus)) {
+            // update invoice status
+            invoice.setStatus(PaymentStatus.PAID);
+            log.info("Invoice status updated to PAID");
+        }else if ("FAILED".equals(paymentStatus)) {
+            // update invoice status
+            invoice.setStatus(PaymentStatus.FAILED);
+        }
+
         // save invoice to database
         invoiceRepository.save(invoice);
-
-        // update invoice status
-        invoice.setStatus(PaymentStatus.PAID);
+        log.info("Invoice saved in database: " + invoice);
+        Optional<Invoice> savedInvoice = invoiceRepository.findById(invoice.getId());
+        log.info("Retrieved saved invoice from database: " + savedInvoice);
 
         // send invoice to user
         if (invoice.getClientEmail() != null) {

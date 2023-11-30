@@ -1,6 +1,7 @@
 package com.maidgroup.maidgroup.util.payment;
 
 import com.maidgroup.maidgroup.model.Invoice;
+import com.squareup.square.Environment;
 import com.squareup.square.SquareClient;
 import com.squareup.square.exceptions.ApiException;
 import com.squareup.square.models.*;
@@ -23,12 +24,16 @@ public class PaymentLinkGenerator {
     /*@Value("${square.redirect-url}")
     private String redirectUrl;*/
 
-    public String generatePaymentLink(Invoice invoice) {
+    public String generatePaymentLink(Invoice invoice, String idempotencyKey, Order order) {
+        // Log the Square API credentials
+        System.out.println("Square Access Token: " + squareAccessToken);
+        System.out.println("Square Location ID: " + squareLocationId);
         // Create Square client
         SquareClient squareClient = new SquareClient.Builder()
+                .environment(Environment.SANDBOX)
                 .accessToken(squareAccessToken)
                 .build();
-
+/*
         // Create line items from invoice items
         List<OrderLineItem> lineItems = invoice.getItems().stream()
                 .map(item -> new OrderLineItem.Builder("1")
@@ -45,9 +50,11 @@ public class PaymentLinkGenerator {
                 .lineItems(lineItems)
                 .build();
 
+ */
+
         // Create checkout request
         CreateCheckoutRequest request = new CreateCheckoutRequest.Builder(
-                UUID.randomUUID().toString(),
+                idempotencyKey,
                 new CreateOrderRequest.Builder()
                         .order(order)
                         .build())
@@ -59,6 +66,9 @@ public class PaymentLinkGenerator {
             CreateCheckoutResponse response = squareClient.getCheckoutApi().createCheckout(squareLocationId, request);
             return response.getCheckout().getCheckoutPageUrl();
         } catch (ApiException e) {
+            for (var item : e.getErrors()) {
+                System.out.println(item.getDetail());
+            }
             throw new RuntimeException("Failed to create checkout", e);
         } catch (IOException e) {
             throw new RuntimeException(e);

@@ -47,6 +47,7 @@ public class WebSecurityConfig {
         http.csrf().disable()
                 .authorizeRequests()
                 .requestMatchers(new AntPathRequestMatcher("/user/login"), new AntPathRequestMatcher("/user/registerUser")).permitAll()
+                .requestMatchers(new AntPathRequestMatcher("/invoices/webhook")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/delete")).authenticated()
                 .requestMatchers(new AntPathRequestMatcher("/getAllUsers")).hasAuthority("ADMIN")
                 .anyRequest().authenticated()

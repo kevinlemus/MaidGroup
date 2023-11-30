@@ -1,17 +1,29 @@
 package com.maidgroup.maidgroup.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maidgroup.maidgroup.dao.InvoiceRepository;
 import com.maidgroup.maidgroup.model.Invoice;
 import com.maidgroup.maidgroup.model.invoiceinfo.PaymentStatus;
 import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.InvoiceService;
 import com.maidgroup.maidgroup.service.exceptions.InvalidInvoiceException;
+import com.maidgroup.maidgroup.util.square.WebhookSignatureVerifier;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Map;
+import java.util.UUID;
 
+@Log4j2
 @RestController
 @RequestMapping("/invoices")
 @CrossOrigin
@@ -20,68 +32,80 @@ public class InvoiceController {
     private InvoiceService invoiceService;
     private InvoiceRepository invoiceRepository;
     private EmailService emailService;
+    private WebhookSignatureVerifier webhookSignatureVerifier;
+    @Value("${SQUARE_SIGNATURE_KEY}")
+    private String signatureKey;
 
     @Autowired
-    public InvoiceController(InvoiceService invoiceService, InvoiceRepository invoiceRepository, EmailService emailService) {
+    public InvoiceController(InvoiceService invoiceService, InvoiceRepository invoiceRepository, EmailService emailService, WebhookSignatureVerifier webhookSignatureVerifier) {
         this.invoiceService = invoiceService;
         this.invoiceRepository = invoiceRepository;
         this.emailService = emailService;
+        this.webhookSignatureVerifier = webhookSignatureVerifier;
     }
 
     @PostMapping("/create")
     public String createInvoice(@RequestBody Invoice invoice) {
-
             // validate invoice fields
             invoiceService.validateInvoice(invoice);
 
-            // set invoice status to UNPAID
-            invoice.setStatus((PaymentStatus.UNPAID));
+            // generate a unique idempotency key
+            String idempotencyKey = UUID.randomUUID().toString();
 
             // generate payment link and send it to user
-            String paymentLink = invoiceService.create(invoice);
+            String paymentLink = invoiceService.create(invoice, idempotencyKey);
 
             return "The unique link for this payment has been sent!";
 
     }
 
     @PostMapping("/webhook")
-    public void handleWebhook(@RequestBody Map<String, Object> payload) {
+    public void handleWebhook(@RequestHeader("X-Square-Signature") String signature, @RequestBody String payload) throws JsonProcessingException, NoSuchAlgorithmException, InvalidKeyException {
+        log.info("Received webhook from Square");
+        // Verify the signature
+        if (!webhookSignatureVerifier.verifySignature(payload, signature, signatureKey)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid signature");
+        }
+
+        //Parse the payload into a Map
+        Map<String, Object> payloadMap = new ObjectMapper().readValue(payload, new TypeReference<Map<String, Object>>() {});
+
+        log.info("Payload: {}", payload);
         // Extract relevant information from webhook payload
-        String type = (String) payload.get("type");
-        Map<String, Object> data = (Map<String, Object>) payload.get("data");
+        String type = (String) payloadMap.get("type");
+        Map<String, Object> data = (Map<String, Object>) payloadMap.get("data");
         Map<String, Object> object = (Map<String, Object>) data.get("object");
         String orderId = (String) object.get("order_id");
+
+        log.info("Type: {}", type);
+        log.info("Order ID: {}", orderId);
 
         // Check if payment was updated
         if ("payment.updated".equals(type)) {
             // Extract payment status from payload
-            String paymentStatus = (String) object.get("status");
+            Map<String, Object> payment = (Map<String, Object>) object.get("payment");
+            String paymentStatus = (String) payment.get("status");
 
+            log.info("Payment Status: {}", paymentStatus);
             // Look up invoice by order ID
             Invoice invoice = invoiceRepository.findByOrderId(orderId);
+            if (invoice == null) {
+                log.error("Invoice not found in database for order ID: " + orderId);
+            } else {
+                log.info("Invoice found in database: " + invoice);
+            }
+            log.info("Invoice found in database: " + invoice);
 
-            // Check if payment was successful
-            if ("COMPLETED".equals(paymentStatus)) {
-                // Update invoice status and send invoice to user
-                if (invoice != null) {
-                    invoice.setStatus(PaymentStatus.PAID);
-                    invoiceService.completePayment(invoice);
-                }
-            } else if ("FAILED".equals(paymentStatus)) {
-                // Update invoice status
-                if (invoice != null) {
-                    invoice.setStatus(PaymentStatus.FAILED);
-                    invoiceRepository.save(invoice);
+            log.info("Retrieved Invoice: {}", invoice);
 
-                    // Generate new payment link and send it to user
-                    String newPaymentLink = invoiceService.create(invoice);
-                    String subject = "Your New Invoice Payment Link";
-                    String body = "Your previous payment attempt failed. Please try again with your new payment link: " + newPaymentLink;
-                    emailService.sendEmail(invoice.getClientEmail(), subject, body);
-                }
+            // Complete payment and update invoice status
+            if (invoice != null) {
+                invoiceService.completePayment(invoice, paymentStatus);
             }
         }
     }
+
+}
 
 
 
@@ -90,5 +114,5 @@ public class InvoiceController {
     //Square will redirect the user back to website after completed payment process with information
     //about the payment in the URL. This will be used to determine redirect page.
 
-}
+
 

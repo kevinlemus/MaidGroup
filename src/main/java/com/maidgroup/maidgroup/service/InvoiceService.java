@@ -7,9 +7,9 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import java.util.List;
 
 public interface InvoiceService {
-    String create(Invoice invoice);
+    String create(Invoice invoice, String idempotencyKey);
     void validateInvoice(Invoice invoice);
-    void completePayment(Invoice invoice);
+    void completePayment(Invoice invoice, String paymentStatus);
     void deleteInvoice(Invoice invoice, User user);
     List<Invoice> getAllInvoices(User user);
     Invoice getInvoiceById(Long id);
