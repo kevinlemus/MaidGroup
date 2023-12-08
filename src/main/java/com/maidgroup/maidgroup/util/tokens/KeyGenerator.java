@@ -16,7 +16,7 @@ public class KeyGenerator {
         String encodedSecretKey = Base64.getEncoder().encodeToString(secretKey);
 
         // Print the encoded secret key
-        System.out.println("Secret key: " + encodedSecretKey);
+        //System.out.println("Secret key: " + encodedSecretKey);
     }
 }
 

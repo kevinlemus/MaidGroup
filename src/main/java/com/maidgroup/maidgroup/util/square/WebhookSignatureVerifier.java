@@ -16,8 +16,10 @@ public class WebhookSignatureVerifier {
     private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
     @Value("${square.webhookUrl}")
     private String webhookUrl;
+    @Value("${square.signature-key}")
+    private String signatureKey;
 
-    public boolean verifySignature (String payload, String signature, String signatureKey) throws NoSuchAlgorithmException, InvalidKeyException {
+    public boolean verifySignature (String payload, String signature) throws NoSuchAlgorithmException, InvalidKeyException {
 
         // Include the webhook URL in the string to sign
         String stringToSign = webhookUrl + payload;
@@ -30,4 +32,5 @@ public class WebhookSignatureVerifier {
         return checkSignature.equals(signature);
 
     }
+
 }

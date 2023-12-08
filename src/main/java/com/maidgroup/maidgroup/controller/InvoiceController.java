@@ -63,7 +63,7 @@ public class InvoiceController {
     public void handleWebhook(@RequestHeader("X-Square-Signature") String signature, @RequestBody String payload) throws JsonProcessingException, NoSuchAlgorithmException, InvalidKeyException {
         log.info("Received webhook from Square");
         // Verify the signature
-        if (!webhookSignatureVerifier.verifySignature(payload, signature, signatureKey)) {
+        if (!webhookSignatureVerifier.verifySignature(payload, signature)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid signature");
         }
 
@@ -105,14 +105,14 @@ public class InvoiceController {
         }
     }
 
+    @GetMapping("/hello")
+    public ResponseEntity<String> helloWorld() {
+        return new ResponseEntity<>("Hello, World!", HttpStatus.OK);
+    }
+
+
 }
-
-
-
 
     //Using frontend to handle redirect page after successful/failed payment.
     //Square will redirect the user back to website after completed payment process with information
     //about the payment in the URL. This will be used to determine redirect page.
-
-
-

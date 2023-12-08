@@ -19,6 +19,8 @@ public class Invoice {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String orderId;
+    @Column(name = "square_order_id")
+    private String squareOrderId;
     private String street;
     private String city;
     private String state;
