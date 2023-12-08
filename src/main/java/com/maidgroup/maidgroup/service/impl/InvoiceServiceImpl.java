@@ -55,6 +55,10 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .accessToken(squareAccessToken)
                 .build();
     }
+    public SquareClient getSquareClient() {
+        return this.squareClient;
+    }
+
 
     @Transactional
     @Override //Checking for all invoice information
@@ -91,6 +95,8 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Transactional
     @Override
     public String create(Invoice invoice, String idempotencyKey) {
+        String orderId = UUID.randomUUID().toString();
+        invoice.setOrderId(orderId);
         // Create line items from invoice items
         List<OrderLineItem> lineItems = invoice.getItems().stream()
                 .map(item -> new OrderLineItem.Builder("1")
@@ -102,29 +108,15 @@ public class InvoiceServiceImpl implements InvoiceService {
                         .build())
                 .collect(Collectors.toList());
 
+        System.out.println("The invoice order ID set in create: " + invoice.getOrderId());
+
         // Create order
         Order order = new Order.Builder(squareLocationId)
+                .referenceId(invoice.getOrderId())
                 .lineItems(lineItems)
                 .build();
-        CreateOrderRequest createOrderRequest = new CreateOrderRequest.Builder()
-                .order(order)
-                .build();
 
-        String orderId = null;
-
-        try {
-            CreateOrderResponse createOrderResponse = squareClient.getOrdersApi().createOrder(createOrderRequest);
-            // Get orderId from response
-            orderId = createOrderResponse.getOrder().getId();
-            System.out.println("Order Id from Square API: " + orderId);
-            // Set orderId in invoice
-            invoice.setOrderId(orderId);
-        } catch (ApiException e) {
-            System.out.println("Errors: " + e.getErrors());
-            throw new RuntimeException("Failed to create order", e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        System.out.println("The reference id order ID set in create: " + order.getReferenceId());
 
         // set invoice status to UNPAID
         invoice.setStatus(PaymentStatus.UNPAID);
@@ -142,32 +134,6 @@ public class InvoiceServiceImpl implements InvoiceService {
             emailService.sendEmail(invoice.getClientEmail(), subject, body);
         }
 
-        // make an asynchronous call using Square SDK
-        squareClient.getLocationsApi().listLocationsAsync()
-                .thenAccept(result -> {
-                    System.out.println("Successfully called List Locations");
-                    System.out.println("Request:\n" + result.getContext().getRequest());
-                    System.out.println("Response:\n" + result.getContext().getResponse());
-                })
-                .exceptionally(exception -> {
-                    System.out.println("Failed to make the request");
-                    try {
-                        throw exception.getCause();
-                    } catch (ApiException ae) {
-                        System.out.println("ApiException occurred");
-                        for (Error err : ae.getErrors()) {
-                            System.out.println(err.getCategory());
-                            System.out.println(err.getCode());
-                            System.out.println(err.getDetail());
-                        }
-                    } catch (Throwable t) {
-                        System.out.println("Other exception occurred");
-                        t.printStackTrace();
-                    }
-                    return null;
-                })
-                .join();
-
         return paymentLink;
     }
 
@@ -179,26 +145,30 @@ public class InvoiceServiceImpl implements InvoiceService {
             // update invoice status
             invoice.setStatus(PaymentStatus.PAID);
             log.info("Invoice status updated to PAID");
-        }else if ("FAILED".equals(paymentStatus)) {
+
+            // save invoice to database
+            invoiceRepository.save(invoice);
+
+            // send invoice to user only if it hasn't been sent before
+            if (!invoice.isSent()) {
+                if (invoice.getClientEmail() != null) {
+                    String subject = "Your Invoice";
+                    String body = "Thank you for your payment. Here is your invoice: ...";
+                    emailService.sendEmail(invoice.getClientEmail(), subject, body);
+                } else if (invoice.getPhoneNumber() != null) {
+                    // send SMS to user with invoice
+                }
+                // mark the invoice as sent
+                invoice.setSent(true);
+                invoiceRepository.save(invoice);
+            }
+        } else if ("FAILED".equals(paymentStatus)) {
             // update invoice status
             invoice.setStatus(PaymentStatus.FAILED);
-        }
-
-        // save invoice to database
-        invoiceRepository.save(invoice);
-        log.info("Invoice saved in database: " + invoice);
-        Optional<Invoice> savedInvoice = invoiceRepository.findById(invoice.getId());
-        log.info("Retrieved saved invoice from database: " + savedInvoice);
-
-        // send invoice to user
-        if (invoice.getClientEmail() != null) {
-            String subject = "Your Invoice";
-            String body = "Thank you for your payment. Here is your invoice: ...";
-            emailService.sendEmail(invoice.getClientEmail(), subject, body);
-        } else if (invoice.getPhoneNumber() != null) {
-            // send SMS to user with invoice
+            invoiceRepository.save(invoice);
         }
     }
+
 
 
     @Override

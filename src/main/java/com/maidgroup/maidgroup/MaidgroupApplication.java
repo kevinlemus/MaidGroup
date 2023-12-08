@@ -15,7 +15,7 @@ public class MaidgroupApplication {
 		String key = "VJj7brPdM3ukD_Q6QyIYLQ";
 
 		// Your webhook's URL
-		String url = "https://seven-paws-join.loca.lt/maidgroup/invoices/webhook";
+		String url = "https://plain-steaks-sip.loca.lt/maidgroup/invoices/webhook";
 
 		// Your webhook's JSON payload
 		String payload = "{\n" +
@@ -24,7 +24,7 @@ public class MaidgroupApplication {
 				"    \"state\": \"Anystate\",\n" +
 				"    \"zipcode\": 12345,\n" +
 				"    \"date\": \"2023-11-03\",\n" +
-				"    \"firstName\": \"John\",\n" +
+				"    \"firstName\": \"Kevin\",\n" +
 				"    \"lastName\": \"Doe\",\n" +
 				"    \"clientEmail\": \"kevinlemus@gmail.com\",\n" +
 				"    \"phoneNumber\": \"123-456-7890\",\n" +

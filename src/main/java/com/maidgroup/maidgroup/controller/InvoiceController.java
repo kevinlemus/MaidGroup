@@ -9,7 +9,12 @@ import com.maidgroup.maidgroup.model.invoiceinfo.PaymentStatus;
 import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.InvoiceService;
 import com.maidgroup.maidgroup.service.exceptions.InvalidInvoiceException;
+import com.maidgroup.maidgroup.service.impl.InvoiceServiceImpl;
 import com.maidgroup.maidgroup.util.square.WebhookSignatureVerifier;
+import com.squareup.square.exceptions.ApiException;
+import com.squareup.square.models.BatchRetrieveOrdersRequest;
+import com.squareup.square.models.BatchRetrieveOrdersResponse;
+import com.squareup.square.models.Order;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,8 +23,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,15 +36,17 @@ import java.util.UUID;
 @CrossOrigin
 public class InvoiceController {
 
-    private InvoiceService invoiceService;
+    private InvoiceServiceImpl invoiceService;
     private InvoiceRepository invoiceRepository;
     private EmailService emailService;
     private WebhookSignatureVerifier webhookSignatureVerifier;
     @Value("${SQUARE_SIGNATURE_KEY}")
     private String signatureKey;
+    @Value("${square.location-id}")
+    private String squareLocationId;
 
     @Autowired
-    public InvoiceController(InvoiceService invoiceService, InvoiceRepository invoiceRepository, EmailService emailService, WebhookSignatureVerifier webhookSignatureVerifier) {
+    public InvoiceController(InvoiceServiceImpl invoiceService, InvoiceRepository invoiceRepository, EmailService emailService, WebhookSignatureVerifier webhookSignatureVerifier) {
         this.invoiceService = invoiceService;
         this.invoiceRepository = invoiceRepository;
         this.emailService = emailService;
@@ -53,14 +62,14 @@ public class InvoiceController {
             String idempotencyKey = UUID.randomUUID().toString();
 
             // generate payment link and send it to user
-            String paymentLink = invoiceService.create(invoice, idempotencyKey);
+            invoiceService.create(invoice, idempotencyKey);
 
             return "The unique link for this payment has been sent!";
 
     }
 
     @PostMapping("/webhook")
-    public void handleWebhook(@RequestHeader("X-Square-Signature") String signature, @RequestBody String payload) throws JsonProcessingException, NoSuchAlgorithmException, InvalidKeyException {
+    public void handleWebhook(@RequestHeader("X-Square-Signature") String signature, @RequestBody String payload) throws IOException, NoSuchAlgorithmException, InvalidKeyException, ApiException {
         log.info("Received webhook from Square");
         // Verify the signature
         if (!webhookSignatureVerifier.verifySignature(payload, signature)) {
@@ -73,22 +82,36 @@ public class InvoiceController {
         log.info("Payload: {}", payload);
         // Extract relevant information from webhook payload
         String type = (String) payloadMap.get("type");
+// Extract relevant information from webhook payload
         Map<String, Object> data = (Map<String, Object>) payloadMap.get("data");
         Map<String, Object> object = (Map<String, Object>) data.get("object");
-        String orderId = (String) object.get("order_id");
+        Map<String, Object> payment = (Map<String, Object>) object.get("payment");
 
+        // Extract the order ID from the payload
+        String orderId = (String) payment.get("order_id");
+
+        // Call the BatchRetrieveOrders endpoint to retrieve the order
+        BatchRetrieveOrdersRequest request = new BatchRetrieveOrdersRequest.Builder(Collections.singletonList(orderId))
+                .build();
+        BatchRetrieveOrdersResponse response = invoiceService.getSquareClient().getOrdersApi().batchRetrieveOrders(request);
+
+        // Extract the referenceId from the order
+        Order order = response.getOrders().get(0);
+        String referenceId = order.getReferenceId();
+
+        // Look up invoice by order ID
+        Invoice invoice = invoiceRepository.findByOrderId(referenceId);
+
+        log.info("Webhook reference ID and original order ID: " + referenceId);
         log.info("Type: {}", type);
-        log.info("Order ID: {}", orderId);
 
         // Check if payment was updated
         if ("payment.updated".equals(type)) {
             // Extract payment status from payload
-            Map<String, Object> payment = (Map<String, Object>) object.get("payment");
             String paymentStatus = (String) payment.get("status");
 
             log.info("Payment Status: {}", paymentStatus);
-            // Look up invoice by order ID
-            Invoice invoice = invoiceRepository.findByOrderId(orderId);
+
             if (invoice == null) {
                 log.error("Invoice not found in database for order ID: " + orderId);
             } else {
@@ -104,6 +127,7 @@ public class InvoiceController {
             }
         }
     }
+
 
     @GetMapping("/hello")
     public ResponseEntity<String> helloWorld() {

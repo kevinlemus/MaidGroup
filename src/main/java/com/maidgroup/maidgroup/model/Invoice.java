@@ -38,4 +38,5 @@ public class Invoice {
     private User user;
     @ElementCollection
     private List<InvoiceItem> items;
+    private boolean sent;
 }
