@@ -1,12 +1,17 @@
 package com.maidgroup.maidgroup.service.impl;
 
 import com.maidgroup.maidgroup.dao.InvoiceRepository;
+import com.maidgroup.maidgroup.model.Consultation;
 import com.maidgroup.maidgroup.model.Invoice;
 import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.invoiceinfo.PaymentStatus;
+import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.InvoiceService;
+import com.maidgroup.maidgroup.service.exceptions.ConsultationNotFoundException;
 import com.maidgroup.maidgroup.service.exceptions.InvalidInvoiceException;
+import com.maidgroup.maidgroup.service.exceptions.InvoiceNotFoundException;
+import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
 import com.maidgroup.maidgroup.util.payment.PaymentLinkGenerator;
 import com.squareup.square.Environment;
 import com.squareup.square.SquareClient;
@@ -21,6 +26,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.swing.text.html.Option;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -170,10 +176,20 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
 
-
+    @Transactional
     @Override
-    public void deleteInvoice(Invoice invoice, User user) {
-
+    public void delete(Long invoiceId, User requester) {
+        Optional<Invoice> invoiceToDelete = invoiceRepository.findById(invoiceId);
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
+        if(invoiceToDelete.isPresent()){
+            if(isAdmin) {
+                invoiceRepository.delete(invoiceToDelete.get());
+            } else {
+                throw new UnauthorizedException("You are not authorized to delete consultations.");
+            }
+        } else {
+            throw new InvoiceNotFoundException("No invoice with the id " + invoiceId + "exists.");
+        }
     }
 
     @Override

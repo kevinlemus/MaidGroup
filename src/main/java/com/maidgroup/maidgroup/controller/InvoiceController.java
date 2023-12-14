@@ -4,10 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maidgroup.maidgroup.dao.InvoiceRepository;
+import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.Invoice;
+import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.invoiceinfo.PaymentStatus;
 import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.InvoiceService;
+import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.exceptions.InvalidInvoiceException;
 import com.maidgroup.maidgroup.service.impl.InvoiceServiceImpl;
 import com.maidgroup.maidgroup.util.square.WebhookSignatureVerifier;
@@ -26,6 +29,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.Principal;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
@@ -36,8 +40,11 @@ import java.util.UUID;
 @CrossOrigin
 public class InvoiceController {
 
-    private InvoiceServiceImpl invoiceService;
+    private InvoiceServiceImpl invoiceServiceImpl;
+    private InvoiceService invoiceService;
     private InvoiceRepository invoiceRepository;
+    private UserService userService;
+    private UserRepository userRepository;
     private EmailService emailService;
     private WebhookSignatureVerifier webhookSignatureVerifier;
     @Value("${SQUARE_SIGNATURE_KEY}")
@@ -46,9 +53,12 @@ public class InvoiceController {
     private String squareLocationId;
 
     @Autowired
-    public InvoiceController(InvoiceServiceImpl invoiceService, InvoiceRepository invoiceRepository, EmailService emailService, WebhookSignatureVerifier webhookSignatureVerifier) {
+    public InvoiceController(InvoiceServiceImpl invoiceServiceImpl, InvoiceService invoiceService, InvoiceRepository invoiceRepository, UserRepository userRepository, UserService userService, EmailService emailService, WebhookSignatureVerifier webhookSignatureVerifier) {
+        this.invoiceServiceImpl = invoiceServiceImpl;
         this.invoiceService = invoiceService;
         this.invoiceRepository = invoiceRepository;
+        this.userRepository = userRepository;
+        this.userService = userService;
         this.emailService = emailService;
         this.webhookSignatureVerifier = webhookSignatureVerifier;
     }
@@ -93,7 +103,7 @@ public class InvoiceController {
         // Call the BatchRetrieveOrders endpoint to retrieve the order
         BatchRetrieveOrdersRequest request = new BatchRetrieveOrdersRequest.Builder(Collections.singletonList(orderId))
                 .build();
-        BatchRetrieveOrdersResponse response = invoiceService.getSquareClient().getOrdersApi().batchRetrieveOrders(request);
+        BatchRetrieveOrdersResponse response = invoiceServiceImpl.getSquareClient().getOrdersApi().batchRetrieveOrders(request);
 
         // Extract the referenceId from the order
         Order order = response.getOrders().get(0);
@@ -128,12 +138,13 @@ public class InvoiceController {
         }
     }
 
+    @DeleteMapping("/{id}")
+    public String delete(@PathVariable("id") Long id, Principal principal){
+        User authUser = userRepository.findByUsername(principal.getName());
+        invoiceService.delete(id, authUser);
+        return "This invoice has been deleted.";
 
-    @GetMapping("/hello")
-    public ResponseEntity<String> helloWorld() {
-        return new ResponseEntity<>("Hello, World!", HttpStatus.OK);
     }
-
 
 }
 
