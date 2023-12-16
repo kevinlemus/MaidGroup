@@ -13,6 +13,7 @@ import com.maidgroup.maidgroup.service.InvoiceService;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.exceptions.InvalidInvoiceException;
 import com.maidgroup.maidgroup.service.impl.InvoiceServiceImpl;
+import com.maidgroup.maidgroup.util.dto.Responses.InvoiceResponse;
 import com.maidgroup.maidgroup.util.square.WebhookSignatureVerifier;
 import com.squareup.square.exceptions.ApiException;
 import com.squareup.square.models.BatchRetrieveOrdersRequest;
@@ -21,6 +22,7 @@ import com.squareup.square.models.Order;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,9 +32,12 @@ import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Log4j2
 @RestController
@@ -92,7 +97,7 @@ public class InvoiceController {
         log.info("Payload: {}", payload);
         // Extract relevant information from webhook payload
         String type = (String) payloadMap.get("type");
-// Extract relevant information from webhook payload
+        // Extract relevant information from webhook payload
         Map<String, Object> data = (Map<String, Object>) payloadMap.get("data");
         Map<String, Object> object = (Map<String, Object>) data.get("object");
         Map<String, Object> payment = (Map<String, Object>) object.get("payment");
@@ -145,6 +150,22 @@ public class InvoiceController {
         return "This invoice has been deleted.";
 
     }
+
+    @GetMapping
+    public @ResponseBody List<InvoiceResponse> getInvoices(Principal principal, @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date, @RequestParam(value = "status", required = false) PaymentStatus status, @RequestParam(value = "sort", required = false) String sort) {
+        User authUser = userRepository.findByUsername(principal.getName());
+        List<Invoice> invoices = invoiceService.getInvoices(authUser, date, status, sort);
+        return invoices.stream().map(InvoiceResponse::new).collect(Collectors.toList());
+    }
+
+    @GetMapping("/{id}")
+    public InvoiceResponse getInvoiceById(@PathVariable("id") Long id, Principal principal){
+        User authUser = userRepository.findByUsername(principal.getName());
+        Invoice invoice = invoiceService.getInvoiceById(id, authUser);
+        InvoiceResponse invoiceResponse = new InvoiceResponse(invoice);
+        return invoiceResponse;
+    }
+
 
 }
 

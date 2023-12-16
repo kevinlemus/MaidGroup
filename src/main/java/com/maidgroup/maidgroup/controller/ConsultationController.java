@@ -39,7 +39,6 @@ public class ConsultationController {
     UserService userService;
     UserRepository userRepository;
 
-
     @Autowired
     public ConsultationController(ConsultationService consultService, ConsultationRepository consultRepository, UserService userService, UserRepository userRepository) {
         this.consultService = consultService;

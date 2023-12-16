@@ -1,6 +1,7 @@
 package com.maidgroup.maidgroup.service.impl;
 
 import com.maidgroup.maidgroup.dao.InvoiceRepository;
+import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.Consultation;
 import com.maidgroup.maidgroup.model.Invoice;
 import com.maidgroup.maidgroup.model.User;
@@ -8,10 +9,7 @@ import com.maidgroup.maidgroup.model.invoiceinfo.PaymentStatus;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.InvoiceService;
-import com.maidgroup.maidgroup.service.exceptions.ConsultationNotFoundException;
-import com.maidgroup.maidgroup.service.exceptions.InvalidInvoiceException;
-import com.maidgroup.maidgroup.service.exceptions.InvoiceNotFoundException;
-import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
+import com.maidgroup.maidgroup.service.exceptions.*;
 import com.maidgroup.maidgroup.util.payment.PaymentLinkGenerator;
 import com.squareup.square.Environment;
 import com.squareup.square.SquareClient;
@@ -28,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.swing.text.html.Option;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 public class InvoiceServiceImpl implements InvoiceService {
 
     InvoiceRepository invoiceRepository;
+    UserRepository userRepository;
     EmailService emailService;
     private PaymentLinkGenerator paymentLinkGenerator;
     private SquareClient squareClient;
@@ -47,8 +48,9 @@ public class InvoiceServiceImpl implements InvoiceService {
     private String squareAccessToken;
 
     @Autowired
-    public InvoiceServiceImpl(InvoiceRepository invoiceRepository, EmailService emailService, PaymentLinkGenerator paymentLinkGenerator) {
+    public InvoiceServiceImpl(InvoiceRepository invoiceRepository, UserRepository userRepository, EmailService emailService, PaymentLinkGenerator paymentLinkGenerator) {
         this.invoiceRepository = invoiceRepository;
+        this.userRepository = userRepository;
         this.emailService = emailService;
         this.paymentLinkGenerator = paymentLinkGenerator;
 
@@ -192,14 +194,81 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
     }
 
+    @Transactional
     @Override
-    public List<Invoice> getAllInvoices(User user) {
-        return null;
+    public List<Invoice> getInvoices(User requester, LocalDate date, PaymentStatus status, String sort) {
+        List<Invoice> invoices;
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
+
+        if (isAdmin) {
+            // If the requester is an admin, get all invoices
+            invoices = invoiceRepository.findAll();
+        } else {
+            // If the requester is not an admin, get only their invoices
+            invoices = invoiceRepository.findByUser(requester);
+        }
+
+        if (date != null) {
+            invoices = invoices.stream()
+                    .filter(invoice -> invoice.getDate().equals(date))
+                    .collect(Collectors.toList());
+        }
+
+        if (isAdmin && status != null) {
+            invoices = invoices.stream()
+                    .filter(invoice -> invoice.getStatus().equals(status))
+                    .collect(Collectors.toList());
+        }
+
+        if (invoices.isEmpty()) {
+            throw new InvoiceNotFoundException("No invoices were found.");
+        }
+
+        if (sort != null) {
+            switch (sort) {
+                case "recent":
+                    invoices.sort(Comparator.comparing(Invoice::getDate).reversed());
+                    break;
+                case "oldest":
+                    invoices.sort(Comparator.comparing(Invoice::getDate));
+                    break;
+                case "nameAsc":
+                    invoices.sort(Comparator.comparing(Invoice::getLastName)
+                            .thenComparing(Invoice::getFirstName));
+                    break;
+                case "nameDesc":
+                    invoices.sort(Comparator.comparing(Invoice::getLastName)
+                            .thenComparing(Invoice::getFirstName).reversed());
+                    break;
+                case "statusAsc":
+                    invoices.sort(Comparator.comparing(Invoice::getStatus));
+                    break;
+                case "statusDesc":
+                    invoices.sort(Comparator.comparing(Invoice::getStatus).reversed());
+                    break;
+            }
+        }
+
+        return invoices;
     }
 
+    @Transactional
     @Override
-    public Invoice getInvoiceById(Long id) {
-        return null;
+    public Invoice getInvoiceById(Long id, User requester) {
+        Optional<Invoice> invoice = invoiceRepository.findById(id);
+        if(invoice.isEmpty()){
+            throw new InvoiceNotFoundException("No invoice was found.");
+        }
+        Invoice retrievedInvoice = invoice.get();
+
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
+        boolean isOwner = retrievedInvoice.getUser().equals(requester);
+
+        if (isAdmin || isOwner) {
+            return retrievedInvoice;
+        } else {
+            throw new UnauthorizedException("You are not authorized to view this invoice.");
+        }
     }
 
     @Override
