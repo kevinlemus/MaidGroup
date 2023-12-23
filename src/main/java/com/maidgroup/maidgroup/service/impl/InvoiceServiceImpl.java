@@ -177,7 +177,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
     }
 
-
     @Transactional
     @Override
     public void delete(Long invoiceId, User requester) {
@@ -204,7 +203,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             // If the requester is an admin, get all invoices
             invoices = invoiceRepository.findAll();
         } else {
-            // If the requester is not an admin, get only their invoices
+            // If the requester is not an admin, get only their invoicesSSS
             invoices = invoiceRepository.findByUser(requester);
         }
 
