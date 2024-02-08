@@ -1,6 +1,5 @@
 package com.maidgroup.maidgroup.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maidgroup.maidgroup.dao.InvoiceRepository;
@@ -11,8 +10,8 @@ import com.maidgroup.maidgroup.model.invoiceinfo.PaymentStatus;
 import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.InvoiceService;
 import com.maidgroup.maidgroup.service.UserService;
-import com.maidgroup.maidgroup.service.exceptions.InvalidInvoiceException;
 import com.maidgroup.maidgroup.service.impl.InvoiceServiceImpl;
+import com.maidgroup.maidgroup.util.dto.Requests.InvoiceRequest;
 import com.maidgroup.maidgroup.util.dto.Responses.InvoiceResponse;
 import com.maidgroup.maidgroup.util.square.WebhookSignatureVerifier;
 import com.squareup.square.exceptions.ApiException;
@@ -24,7 +23,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -165,6 +165,51 @@ public class InvoiceController {
         InvoiceResponse invoiceResponse = new InvoiceResponse(invoice);
         return invoiceResponse;
     }
+
+    @PutMapping("/{invoiceId}")
+    public InvoiceResponse updateInvoice(@PathVariable Long invoiceId, @RequestBody InvoiceRequest invoiceRequest, Principal principal){
+        // Check if the user is authenticated
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        }
+        User authUser = userRepository.findByUsername(principal.getName());
+
+        Invoice invoice = new Invoice();
+        invoice.setId(invoiceId);
+        invoice.setOrderId(invoiceRequest.getOrderId());
+        invoice.setZipcode(invoiceRequest.getZipcode());
+        invoice.setDate(invoiceRequest.getDate());
+        invoice.setFirstName(invoiceRequest.getFirstName());
+        invoice.setLastName(invoiceRequest.getLastName());
+        invoice.setClientEmail(invoiceRequest.getClientEmail());
+        invoice.setPhoneNumber(invoiceRequest.getPhoneNumber());
+        invoice.setTotalPrice(invoiceRequest.getTotalPrice());
+        invoice.setStatus(invoiceRequest.getStatus());
+        invoice.setItems(invoiceRequest.getItems());
+
+        Invoice updatedInvoice = invoiceService.updateInvoice(authUser, invoice);
+        return new InvoiceResponse(updatedInvoice);
+    }
+
+    @PostMapping("/sendLink")
+    public String sendPaymentLink(@RequestBody Invoice invoice, Principal principal) {
+        User authUser = userRepository.findByUsername(principal.getName());
+        // generate payment link and send it to user
+        invoiceService.sendPaymentLink(invoice, authUser);
+        return "A new payment link has been sent.";
+    }
+
+    @PostMapping("/sendInvoice")
+    public String sendInvoice(@RequestBody Invoice invoice, @RequestParam List<String> emails, Principal principal) {
+        User authUser = userRepository.findByUsername(principal.getName());
+        for (String email : emails) {
+            invoiceService.sendInvoice(invoice, email, authUser);
+        }
+        return "This invoice has been sent out!";
+    }
+
+
 
 
 }

@@ -270,9 +270,92 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
     }
 
+    @Transactional
     @Override
-    public Invoice update(User user, Invoice invoice) {
-        return null;
+    public Invoice updateInvoice(User user, Invoice updatedInvoice) {
+        // Check if the user is an admin
+        if (!user.getRole().equals(Role.ADMIN)) {
+            throw new UnauthorizedException("You are not authorized to update this invoice.");
+        }
+
+        // Get the existing invoice from the database
+        Invoice existingInvoice = invoiceRepository.findById(updatedInvoice.getId())
+                .orElseThrow(() -> new InvoiceNotFoundException("Invoice not found"));
+
+        // Check if the existing invoice is already PAID
+        if (existingInvoice.getStatus() == PaymentStatus.PAID) {
+            throw new InvalidInvoiceException("Cannot update an invoice that is already paid");
+        }
+
+        // Update the existing invoice fields with the updated invoice fields if they are not null
+        if (updatedInvoice.getStreet() != null) existingInvoice.setStreet(updatedInvoice.getStreet());
+        if (updatedInvoice.getCity() != null) existingInvoice.setCity(updatedInvoice.getCity());
+        if (updatedInvoice.getState() != null) existingInvoice.setState(updatedInvoice.getState());
+        if (updatedInvoice.getZipcode() != 0) existingInvoice.setZipcode(updatedInvoice.getZipcode());
+        if (updatedInvoice.getDate() != null) existingInvoice.setDate(updatedInvoice.getDate());
+        if (updatedInvoice.getFirstName() != null) existingInvoice.setFirstName(updatedInvoice.getFirstName());
+        if (updatedInvoice.getLastName() != null) existingInvoice.setLastName(updatedInvoice.getLastName());
+        if (updatedInvoice.getClientEmail() != null) existingInvoice.setClientEmail(updatedInvoice.getClientEmail());
+        if (updatedInvoice.getPhoneNumber() != null) existingInvoice.setPhoneNumber(updatedInvoice.getPhoneNumber());
+        if (updatedInvoice.getTotalPrice() != 0) existingInvoice.setTotalPrice(updatedInvoice.getTotalPrice());
+        if (updatedInvoice.getStatus() != null) existingInvoice.setStatus(updatedInvoice.getStatus());
+        if (updatedInvoice.getUser() != null) existingInvoice.setUser(updatedInvoice.getUser());
+        if (updatedInvoice.getItems() != null) existingInvoice.setItems(updatedInvoice.getItems());
+
+        // Save the updated invoice to the database
+        return invoiceRepository.save(existingInvoice);
+    }
+
+
+
+    public void sendPaymentLink(Invoice invoice, User user) {
+        if (!user.getRole().equals(Role.ADMIN)) {
+            throw new UnauthorizedException("You are not authorized to update this invoice.");
+        }
+        // generate a unique idempotency key
+        String idempotencyKey = UUID.randomUUID().toString();
+
+        // Create line items from invoice items
+        List<OrderLineItem> lineItems = invoice.getItems().stream()
+                .map(item -> new OrderLineItem.Builder("1")
+                        .name(item.getName())
+                        .basePriceMoney(new Money.Builder()
+                                .amount((long) (item.getPrice() * 100))
+                                .currency("USD")
+                                .build())
+                        .build())
+                .collect(Collectors.toList());
+
+        // Create order
+        Order order = new Order.Builder(squareLocationId)
+                .referenceId(invoice.getOrderId())
+                .lineItems(lineItems)
+                .build();
+
+        // generate payment link
+        String paymentLink = paymentLinkGenerator.generatePaymentLink(invoice, idempotencyKey, order);
+
+        // send payment link to user
+        if (invoice.getClientEmail() != null) {
+            String subject = "Your Invoice Payment Link";
+            String body = "Here is your payment link: " + paymentLink;
+            emailService.sendEmail(invoice.getClientEmail(), subject, body);
+        }
+
+    }
+
+    @Transactional
+    public void sendInvoice(Invoice invoice, String email, User user) {
+        if (!user.getRole().equals(Role.ADMIN)) {
+            throw new UnauthorizedException("You are not authorized to update this invoice.");
+        }
+        if (invoice.getStatus() != PaymentStatus.PAID) {
+            throw new InvalidInvoiceException("Cannot send an invoice that is not paid.");
+        }
+
+        String subject = "Your Invoice";
+        String body = "Here is your invoice: ..."; // HTML invoice template here
+        emailService.sendEmail(email, subject, body);
     }
 
 }
