@@ -20,6 +20,7 @@ import com.squareup.square.models.Error;
 import jakarta.annotation.PostConstruct;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -74,12 +75,13 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override //Checking for all invoice information
     public void validateInvoice(Invoice invoice) {
         if (invoice.getFirstName() == null || invoice.getFirstName().isEmpty()) {
-            throw new InvalidInvoiceException("Client first name is required");
+            throw new InvalidNameException("Client first name is required");
         }
         if (invoice.getLastName() == null || invoice.getLastName().isEmpty()) {
-            throw new InvalidInvoiceException("Client last name is required");
+            throw new InvalidNameException("Client last name is required");
         }
-        if (invoice.getClientEmail() == null || invoice.getClientEmail().isEmpty()) {
+        EmailValidator emailValidator = EmailValidator.getInstance();
+        if (invoice.getClientEmail() == null || invoice.getClientEmail().isEmpty() || !emailValidator.isValid(invoice.getClientEmail())) {
             throw new InvalidInvoiceException("Email is required");
         }
         if (invoice.getStreet() == null || invoice.getStreet().isEmpty()) {

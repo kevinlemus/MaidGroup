@@ -15,6 +15,7 @@ import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -50,7 +51,7 @@ public class UserController {
 
     @PostMapping("/registerUser")
     @PreAuthorize("permitAll")
-    public UserResponse register(@RequestBody UserRequest userRequest) {
+    public UserResponse register(@RequestBody @Valid UserRequest userRequest) {
         // Create a User object from the UserRequest object
         User user = new User();
         user.setUsername(userRequest.getUsername());

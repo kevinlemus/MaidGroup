@@ -32,7 +32,7 @@ public class AuthAspect {
         String token = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getHeader("Authorization");
         if(!jwtUtility.isTokenValid(token)) throw new UnauthorizedException("No token found");
 
-        if(!annotation.isAdmin() && !jwtUtility.extractTokenDetails(token).getRole().equals("ADMIN")){
+        if(!annotation.isAdmin() && !jwtUtility.extractTokenDetails(token).getRole().toString().equals("ADMIN")){
             throw new UnauthorizedException("User does not have administrative permission to access this endpoint.");
         }
 
