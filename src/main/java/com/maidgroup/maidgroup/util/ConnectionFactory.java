@@ -10,6 +10,7 @@ import java.util.Properties;
 
 @Component
 public class ConnectionFactory {
+
     private static final ConnectionFactory connectionFactory = new ConnectionFactory(); //eager instantiate
     private Properties properties = new Properties();
     private static String url;

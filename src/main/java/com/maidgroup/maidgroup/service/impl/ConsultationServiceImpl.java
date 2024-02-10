@@ -14,6 +14,9 @@ import com.maidgroup.maidgroup.service.ConsultationService;
 import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.exceptions.*;
 import com.maidgroup.maidgroup.util.twilio.TwilioSMS;
+import lombok.NoArgsConstructor;
+import lombok.extern.java.Log;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,6 +26,8 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Log4j2
+@NoArgsConstructor
 @Service
 public class ConsultationServiceImpl implements ConsultationService {
 

@@ -10,6 +10,9 @@ import com.maidgroup.maidgroup.model.invoiceinfo.PaymentStatus;
 import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.InvoiceService;
 import com.maidgroup.maidgroup.service.UserService;
+import com.maidgroup.maidgroup.service.exceptions.InvalidInvoiceException;
+import com.maidgroup.maidgroup.service.exceptions.InvoiceNotFoundException;
+import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
 import com.maidgroup.maidgroup.service.impl.InvoiceServiceImpl;
 import com.maidgroup.maidgroup.util.dto.Requests.InvoiceRequest;
 import com.maidgroup.maidgroup.util.dto.Responses.InvoiceResponse;
@@ -210,7 +213,29 @@ public class InvoiceController {
     }
 
 
+    //--------------------------------------------------------------------------------------------------------------
 
+
+    @ExceptionHandler({UnauthorizedException.class})
+    @ResponseStatus(value = HttpStatus.UNAUTHORIZED)
+    public @ResponseBody String handleUnauthorizedException(UnauthorizedException e) {
+        return e.getMessage();
+    }
+    @ExceptionHandler({InvalidInvoiceException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handInvalidInvoiceException(InvalidInvoiceException e) {
+        return e.getMessage();
+    }
+    @ExceptionHandler({InvoiceNotFoundException.class})
+    @ResponseStatus(value = HttpStatus.NOT_FOUND)
+    public @ResponseBody String handleInvoiceNotFoundException(InvoiceNotFoundException e) {
+        return e.getMessage();
+    }
+    @ExceptionHandler({ResponseStatusException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public @ResponseBody String handleResponseStatusException(ResponseStatusException e) {
+        return e.getMessage();
+    }
 
 }
 

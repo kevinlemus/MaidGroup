@@ -18,6 +18,7 @@ import com.squareup.square.models.*;
 import com.squareup.square.exceptions.ApiException;
 import com.squareup.square.models.Error;
 import jakarta.annotation.PostConstruct;
+import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +35,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Log4j2
+@NoArgsConstructor
 @Service
 public class InvoiceServiceImpl implements InvoiceService {
 

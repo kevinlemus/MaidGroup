@@ -1,6 +1,7 @@
 package com.maidgroup.maidgroup.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.maidgroup.maidgroup.dao.Secured;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.userinfo.Role;
@@ -140,6 +141,7 @@ public class UserController {
     }
 
     @GetMapping("/getAllUsers")
+    @Secured(isAdmin = true)
     public @ResponseBody List<UserResponse> getAllUsers(Principal principal){
         User authUser = userRepository.findByUsername(principal.getName());
         List<UserResponse> allUsers = userService.getAllUsers(authUser);
@@ -159,46 +161,6 @@ public class UserController {
         User authUser = userRepository.findByUsername(principal.getName());
         userService.delete(userId, authUser);
         return "Your account has been deleted";
-    }
-
-    @ExceptionHandler({InvalidCredentialsException.class})
-    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public @ResponseBody String exceptionInvalidUserInput(InvalidCredentialsException e){
-        return e.getMessage();
-    }
-
-    @ExceptionHandler({UsernameAlreadyExists.class})
-    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public @ResponseBody String exceptionUsernameExists(UsernameAlreadyExists e) { return e.getMessage(); }
-
-    @ExceptionHandler({JsonProcessingException.class})
-    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public @ResponseBody String exceptionInvalidJsonProcessing(JsonProcessingException e){
-        return e.getMessage();
-    }
-
-    @ExceptionHandler({UserNotFoundException.class})
-    @ResponseStatus(value = HttpStatus.NOT_FOUND)
-    public @ResponseBody String handleUserNotFoundException(UserNotFoundException e) {
-        return e.getMessage();
-    }
-
-    @ExceptionHandler({UnauthorizedException.class})
-    @ResponseStatus(value = HttpStatus.UNAUTHORIZED)
-    public @ResponseBody String handleUnauthorizedException(UnauthorizedException e) {
-        return e.getMessage();
-    }
-
-    @ExceptionHandler({InvalidCredentialsException.class})
-    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public @ResponseBody String handleInvalidCredentialsException(InvalidCredentialsException e) {
-        return e.getMessage();
-    }
-
-    @ExceptionHandler({InvalidDateException.class})
-    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public @ResponseBody String handleInvalidDateException(InvalidDateException e) {
-        return e.getMessage();
     }
 
 }
