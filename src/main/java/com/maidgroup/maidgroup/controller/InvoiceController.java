@@ -21,6 +21,7 @@ import com.squareup.square.exceptions.ApiException;
 import com.squareup.square.models.BatchRetrieveOrdersRequest;
 import com.squareup.square.models.BatchRetrieveOrdersResponse;
 import com.squareup.square.models.Order;
+import jakarta.validation.Valid;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,7 +73,7 @@ public class InvoiceController {
     }
 
     @PostMapping("/create")
-    public String createInvoice(@RequestBody Invoice invoice) {
+    public String createInvoice(@RequestBody @Valid Invoice invoice) {
             // validate invoice fields
             invoiceService.validateInvoice(invoice);
 
