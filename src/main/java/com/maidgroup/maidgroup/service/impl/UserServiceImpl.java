@@ -10,14 +10,10 @@ import com.maidgroup.maidgroup.service.exceptions.*;
 import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import io.micrometer.common.util.StringUtils;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.validator.routines.EmailValidator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -92,10 +88,10 @@ public class UserServiceImpl implements UserService {
         if (StringUtils.isEmpty(user.getUsername())) {
             throw new RuntimeException("Username must not be empty");
         }
-        if (user.getFirstName().isEmpty()) {
+        if (user.getFirstName() != null && user.getFirstName().isEmpty()) {
             throw new RuntimeException("First name cannot be empty");
         }
-        if (user.getLastName().isEmpty()) {
+        if (user.getLastName() != null && user.getLastName().isEmpty()) {
             throw new RuntimeException("Last name cannot be empty");
         }
         EmailValidator emailValidator = EmailValidator.getInstance();
@@ -161,8 +157,6 @@ public class UserServiceImpl implements UserService {
                     throw new UsernameAlreadyExists("Username is already taken.");
                 }
                 existingUser.setUsername(user.getUsername());
-                userRepository.save(existingUser);
-
             }
 
             if(user.getPassword() != null){
@@ -191,7 +185,6 @@ public class UserServiceImpl implements UserService {
                     Password newPassword = new Password(passwordEncoder.encode(rawPassword));// create a new Password object and save it to the database
                     existingUser.getPreviousPasswords().add(newPassword);// add the new Password object to the previousPasswords list
                     existingUser.setPassword(new Password(newPassword.getHashedPassword(), newPassword.getDateLastUsed()));// set the password field to a new PasswordEmbeddable object created from the new Password object
-                    userRepository.save(existingUser);
                 }
             }
 
@@ -220,8 +213,9 @@ public class UserServiceImpl implements UserService {
                 existingUser.setAge(age.getAge(user.getDateOfBirth()));
             }
 
+            // Save the user after all updates have been made
             return userRepository.save(existingUser);
-        }else{
+        } else {
             throw new UserNotFoundException("No user was found.");
         }
     }
@@ -271,7 +265,7 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    private void validatePassword(String password) {
+    void validatePassword(String password) {
         String regex = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&+=])(?=\\S+$).{8,}$";
         String[] requirements = {
                 "At least 8 characters long",

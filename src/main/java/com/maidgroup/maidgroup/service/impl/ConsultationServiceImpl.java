@@ -15,7 +15,6 @@ import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.exceptions.*;
 import com.maidgroup.maidgroup.util.twilio.TwilioSMS;
 import lombok.NoArgsConstructor;
-import lombok.extern.java.Log;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Autowired;

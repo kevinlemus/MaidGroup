@@ -1,8 +1,9 @@
 package com.maidgroup.maidgroup.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maidgroup.maidgroup.dao.InvoiceRepository;
 import com.maidgroup.maidgroup.dao.UserRepository;
-import com.maidgroup.maidgroup.model.Consultation;
 import com.maidgroup.maidgroup.model.Invoice;
 import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.invoiceinfo.PaymentStatus;
@@ -11,12 +12,13 @@ import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.InvoiceService;
 import com.maidgroup.maidgroup.service.exceptions.*;
 import com.maidgroup.maidgroup.util.payment.PaymentLinkGenerator;
+import com.maidgroup.maidgroup.util.square.mock.SquareClientWrapper;
+import com.maidgroup.maidgroup.util.square.mock.SquareClientWrapperImpl;
 import com.squareup.square.Environment;
 import com.squareup.square.SquareClient;
 import com.squareup.square.models.*;
 
 import com.squareup.square.exceptions.ApiException;
-import com.squareup.square.models.Error;
 import jakarta.annotation.PostConstruct;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -26,13 +28,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.swing.text.html.Option;
 import java.io.IOException;
 import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Log4j2
@@ -44,32 +42,33 @@ public class InvoiceServiceImpl implements InvoiceService {
     UserRepository userRepository;
     EmailService emailService;
     private PaymentLinkGenerator paymentLinkGenerator;
-    private SquareClient squareClient;
+    private SquareClientWrapper squareClientWrapper;  // Change this line
     @Value("${square.location-id}")
     private String squareLocationId;
     @Value("${square.access-token}")
     private String squareAccessToken;
 
     @Autowired
-    public InvoiceServiceImpl(InvoiceRepository invoiceRepository, UserRepository userRepository, EmailService emailService, PaymentLinkGenerator paymentLinkGenerator) {
+    public InvoiceServiceImpl(InvoiceRepository invoiceRepository, UserRepository userRepository, EmailService emailService, PaymentLinkGenerator paymentLinkGenerator, SquareClientWrapper squareClientWrapper) {  // Add SquareClientWrapper to the constructor
         this.invoiceRepository = invoiceRepository;
         this.userRepository = userRepository;
         this.emailService = emailService;
         this.paymentLinkGenerator = paymentLinkGenerator;
-
+        this.squareClientWrapper = squareClientWrapper;  // Initialize squareClientWrapper
     }
 
     @PostConstruct
     public void init() {
-        this.squareClient = new SquareClient.Builder()
+        SquareClient squareClient = new SquareClient.Builder()
                 .environment(Environment.SANDBOX) // or Environment.PRODUCTION
                 .accessToken(squareAccessToken)
                 .build();
-    }
-    public SquareClient getSquareClient() {
-        return this.squareClient;
+        this.squareClientWrapper = new SquareClientWrapperImpl(squareClient);  // Change this line
     }
 
+    public SquareClientWrapper getSquareClientWrapper() {  // Change this method
+        return this.squareClientWrapper;
+    }
 
     @Transactional
     @Override //Checking for all invoice information
@@ -82,7 +81,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
         EmailValidator emailValidator = EmailValidator.getInstance();
         if (invoice.getClientEmail() == null || invoice.getClientEmail().isEmpty() || !emailValidator.isValid(invoice.getClientEmail())) {
-            throw new InvalidInvoiceException("Email is required");
+            throw new InvalidEmailException("Email is required");
         }
         if (invoice.getStreet() == null || invoice.getStreet().isEmpty()) {
             throw new InvalidInvoiceException("Address is required");
@@ -107,8 +106,11 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Transactional
     @Override
     public String create(Invoice invoice, String idempotencyKey) {
+        validateInvoice(invoice);  // This should throw an InvalidNameException if the first name is null or empty
+
         String orderId = UUID.randomUUID().toString();
         invoice.setOrderId(orderId);
+
         // Create line items from invoice items
         List<OrderLineItem> lineItems = invoice.getItems().stream()
                 .map(item -> new OrderLineItem.Builder("1")
@@ -148,6 +150,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         return paymentLink;
     }
+
 
     @Transactional
     @Override
@@ -362,4 +365,63 @@ public class InvoiceServiceImpl implements InvoiceService {
         emailService.sendEmail(email, subject, body);
     }
 
+    public void handleWebhook(String payload) throws IOException, ApiException {
+        log.info("Payload: {}", payload);
+
+        // Parse the payload into a Map
+        Map<String, Object> payloadMap = new ObjectMapper().readValue(payload, new TypeReference<Map<String, Object>>() {
+        });
+
+        // Extract relevant information from webhook payload
+        String type = (String) payloadMap.get("type");
+        Map<String, Object> data = (Map<String, Object>) payloadMap.get("data");
+
+        // Check if data is null before trying to use it
+        if (data != null) {
+            Map<String, Object> object = (Map<String, Object>) data.get("object");
+            Map<String, Object> payment = (Map<String, Object>) object.get("payment");
+
+            // Extract the order ID from the payload
+            String orderId = (String) payment.get("order_id");
+
+            // Call the BatchRetrieveOrders endpoint to retrieve the order
+            BatchRetrieveOrdersRequest request = new BatchRetrieveOrdersRequest.Builder(Collections.singletonList(orderId))
+                    .build();
+            BatchRetrieveOrdersResponse response = getSquareClientWrapper().getOrdersApi().batchRetrieveOrders(request);
+
+            // Extract the referenceId from the order
+            Order order = response.getOrders().get(0);
+            String referenceId = order.getReferenceId();
+
+            // Look up invoice by order ID
+            Invoice invoice = invoiceRepository.findByOrderId(referenceId);
+
+            log.info("Webhook reference ID and original order ID: " + referenceId);
+            log.info("Type: {}", type);
+
+            // Check if payment was updated
+            if ("payment.updated".equals(type)) {
+                // Extract payment status from payload
+                String paymentStatus = (String) payment.get("status");
+
+                log.info("Payment Status: {}", paymentStatus);
+
+                if (invoice == null) {
+                    log.error("Invoice not found in database for order ID: " + orderId);
+                } else {
+                    log.info("Invoice found in database: " + invoice);
+                }
+                log.info("Invoice found in database: " + invoice);
+
+                log.info("Retrieved Invoice: {}", invoice);
+
+                // Complete payment and update invoice status
+                if (invoice != null) {
+                    completePayment(invoice, paymentStatus);
+                }
+            }
+        }
+    }
 }
+
+

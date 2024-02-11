@@ -8,25 +8,18 @@ import com.maidgroup.maidgroup.model.consultationinfo.ConsultationStatus;
 import com.maidgroup.maidgroup.model.consultationinfo.PreferredContact;
 import com.maidgroup.maidgroup.service.ConsultationService;
 import com.maidgroup.maidgroup.service.UserService;
-import com.maidgroup.maidgroup.service.exceptions.*;
 import com.maidgroup.maidgroup.util.dto.Responses.ConsultResponse;
-import jdk.jshell.Snippet;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import javax.swing.text.html.Option;
-import java.nio.file.attribute.UserPrincipal;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -48,7 +41,7 @@ public class ConsultationController {
     }
 
     @PostMapping("/create")
-    public ConsultResponse createConsultation(@RequestBody Consultation consultation){
+    public ConsultResponse createConsultation(@RequestBody @Valid Consultation consultation){
         Consultation consult = consultService.create(consultation);
         ConsultResponse consultResponse = new ConsultResponse(consult);
         return consultResponse;

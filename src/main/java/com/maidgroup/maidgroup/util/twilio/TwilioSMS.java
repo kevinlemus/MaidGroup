@@ -1,6 +1,5 @@
 package com.maidgroup.maidgroup.util.twilio;
 
-import com.maidgroup.maidgroup.service.impl.ConsultationServiceImpl;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;

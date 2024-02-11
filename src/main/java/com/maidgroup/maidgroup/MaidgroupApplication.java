@@ -5,6 +5,7 @@ import com.maidgroup.maidgroup.util.square.SignatureGenerator;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -19,7 +20,7 @@ public class MaidgroupApplication {
 		String key = "VJj7brPdM3ukD_Q6QyIYLQ";
 
 		// Your webhook's URL
-		String url = "https://red-vans-pick.loca.lt/maidgroup/invoices/webhook";
+		String url = "https://gold-cougars-cough.loca.lt/maidgroup/invoices/webhook";
 
 		// Your webhook's JSON payload
 		String payload = "{\n" +

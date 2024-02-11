@@ -1,12 +1,16 @@
 package com.maidgroup.maidgroup.security;
 
 import com.maidgroup.maidgroup.service.CustomUserDetailsService;
+import com.maidgroup.maidgroup.util.square.mock.SquareClientWrapper;
+import com.maidgroup.maidgroup.util.square.mock.SquareClientWrapperImpl;
 import com.maidgroup.maidgroup.util.tokens.JWTAuthenticationFilter;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
+import com.squareup.square.Environment;
+import com.squareup.square.SquareClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.WebSecurityConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -20,6 +24,8 @@ public class WebSecurityConfig {
 
     CustomUserDetailsService customUserDetailsService;
     JWTUtility jwtUtility;
+    @Value("${square.access-token}")
+    private String squareAccessToken;
 
     @Autowired
     public WebSecurityConfig(CustomUserDetailsService customUserDetailsService, JWTUtility jwtUtility) {
@@ -40,6 +46,18 @@ public class WebSecurityConfig {
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public SquareClientWrapper squareClientWrapper() {
+        // Create a new instance of SquareClient
+        SquareClient squareClient = new SquareClient.Builder()
+                .environment(Environment.SANDBOX) // or Environment.PRODUCTION
+                .accessToken(squareAccessToken)
+                .build();
+
+        // Return a new instance of your SquareClientWrapper implementation
+        return new SquareClientWrapperImpl(squareClient);
     }
 
     @Bean
