@@ -337,6 +337,54 @@ public class InvoiceServiceTestSuite {
     }
 
     @Test
+    public void test_deleteByOrderId_deletesInvoice_givenValidOrderIdAndAdminUser() {
+        // Arrange
+        User requester = new User();
+        requester.setUserId(1L);
+        requester.setRole(Role.ADMIN);
+
+        Invoice invoice = new Invoice();
+        invoice.setOrderId("validOrderId");
+
+        when(invoiceRepository.findByOrderId(any(String.class))).thenReturn(invoice);
+
+        // Act
+        sut.deleteByOrderId("validOrderId", requester);
+
+        // Assert
+        verify(invoiceRepository, times(1)).delete(invoice);
+    }
+
+    @Test(expected = UnauthorizedException.class)
+    public void test_deleteByOrderId_throwsUnauthorizedException_givenNonAdminUser() {
+        // Arrange
+        User requester = new User();
+        requester.setUserId(1L);
+        requester.setRole(Role.USER);
+
+        Invoice invoice = new Invoice();
+        invoice.setOrderId("validOrderId");
+
+        when(invoiceRepository.findByOrderId(any(String.class))).thenReturn(invoice);
+
+        // Act
+        sut.deleteByOrderId("validOrderId", requester);
+    }
+
+    @Test(expected = InvoiceNotFoundException.class)
+    public void test_deleteByOrderId_throwsInvoiceNotFoundException_givenInvalidOrderId() {
+        // Arrange
+        User requester = new User();
+        requester.setUserId(1L);
+        requester.setRole(Role.ADMIN);
+
+        when(invoiceRepository.findByOrderId(any(String.class))).thenReturn(null);
+
+        // Act
+        sut.deleteByOrderId("invalidOrderId", requester);
+    }
+
+    @Test
     public void test_getInvoices_returnsAllInvoices_givenAdminUser() {
         // Arrange
         User requester = new User();
@@ -443,6 +491,67 @@ public class InvoiceServiceTestSuite {
     }
 
     @Test
+    public void test_getInvoiceByOrderId_returnsInvoice_givenValidOrderIdAndAdminUser() {
+        // Arrange
+        User requester = new User();
+        requester.setUserId(1L);
+        requester.setRole(Role.ADMIN);
+
+        Invoice expectedInvoice = new Invoice();
+        expectedInvoice.setOrderId("validOrderId");
+        expectedInvoice.setUser(requester);
+
+        when(invoiceRepository.findByOrderId(any(String.class))).thenReturn(expectedInvoice);
+
+        // Act
+        Invoice actualInvoice = sut.getInvoiceByOrderId("validOrderId", requester);
+
+        // Assert
+        assertEquals(expectedInvoice, actualInvoice);
+    }
+
+    @Test
+    public void test_getInvoiceByOrderId_returnsInvoice_givenValidOrderIdAndOwnerUser() {
+        // Arrange
+        User owner = new User();
+        owner.setUserId(1L);
+        owner.setRole(Role.USER);
+
+        Invoice expectedInvoice = new Invoice();
+        expectedInvoice.setOrderId("validOrderId");
+        expectedInvoice.setUser(owner);
+
+        when(invoiceRepository.findByOrderId(any(String.class))).thenReturn(expectedInvoice);
+
+        // Act
+        Invoice actualInvoice = sut.getInvoiceByOrderId("validOrderId", owner);
+
+        // Assert
+        assertEquals(expectedInvoice, actualInvoice);
+    }
+
+    @Test(expected = UnauthorizedException.class)
+    public void test_getInvoiceByOrderId_throwsUnauthorizedException_givenNonOwnerNonAdminUser() {
+        // Arrange
+        User requester = new User();
+        requester.setUserId(1L);
+        requester.setRole(Role.USER);
+
+        User owner = new User();
+        owner.setUserId(2L);
+        owner.setRole(Role.USER);
+
+        Invoice invoice = new Invoice();
+        invoice.setOrderId("validOrderId");
+        invoice.setUser(owner);
+
+        when(invoiceRepository.findByOrderId(any(String.class))).thenReturn(invoice);
+
+        // Act
+        sut.getInvoiceByOrderId("validOrderId", requester);
+    }
+
+    @Test
     public void test_updateInvoice_updatesAndReturnsInvoice_givenValidUserAndInvoice() {
         // Arrange
         User admin = new User();
@@ -530,6 +639,9 @@ public class InvoiceServiceTestSuite {
         invoice.setId(1L);
         invoice.setClientEmail("test@example.com");
         invoice.setItems(Arrays.asList(new InvoiceItem()));
+        invoice.setStatus(PaymentStatus.UNPAID);
+
+        when(invoiceRepository.findById(invoice.getId())).thenReturn(Optional.of(invoice));
 
         String expectedPaymentLink = "https://payment.example.com";
 
@@ -556,8 +668,8 @@ public class InvoiceServiceTestSuite {
         sut.sendPaymentLink(invoice, user);
     }
 
-    @Test
-    public void test_sendInvoice_sendsEmail_givenValidUserAndInvoice() {
+    @Test(expected = InvoiceAlreadyPaidException.class)
+    public void test_sendPaymentLink_throwsInvoiceAlreadyPaidException_givenPaidInvoice() {
         // Arrange
         User admin = new User();
         admin.setUserId(1L);
@@ -567,10 +679,30 @@ public class InvoiceServiceTestSuite {
         invoice.setId(1L);
         invoice.setStatus(PaymentStatus.PAID);
 
+        // Act
+        sut.sendPaymentLink(invoice, admin);
+    }
+
+
+    @Test
+    public void test_sendInvoice_sendsEmail_givenValidUserAndInvoice() {
+        // Arrange
+        User admin = new User();
+        admin.setUserId(1L);
+        admin.setRole(Role.ADMIN);
+
+        String orderId = "validOrderId";
+
+        Invoice invoice = new Invoice();
+        invoice.setId(1L);
+        invoice.setStatus(PaymentStatus.PAID);
+
+        when(invoiceRepository.findByOrderId(orderId)).thenReturn(invoice);
+
         String email = "test@example.com";
 
         // Act
-        sut.sendInvoice(invoice, email, admin);
+        sut.sendInvoice(orderId, email, admin);
 
         // Assert
         verify(emailService).sendEmail(email, "Your Invoice", "Here is your invoice: ...");
@@ -583,13 +715,10 @@ public class InvoiceServiceTestSuite {
         user.setUserId(1L);
         user.setRole(Role.USER);
 
-        Invoice invoice = new Invoice();
-        invoice.setId(1L);
-
-        String email = "test@example.com";
+        String orderId = "validOrderId";
 
         // Act
-        sut.sendInvoice(invoice, email, user);
+        sut.sendInvoice(orderId, "test@example.com", user);
     }
 
     @Test(expected = InvalidInvoiceException.class)
@@ -599,15 +728,18 @@ public class InvoiceServiceTestSuite {
         admin.setUserId(1L);
         admin.setRole(Role.ADMIN);
 
+        String orderId = "validOrderId";
+
         Invoice invoice = new Invoice();
         invoice.setId(1L);
         invoice.setStatus(PaymentStatus.UNPAID);
 
-        String email = "test@example.com";
+        when(invoiceRepository.findByOrderId(orderId)).thenReturn(invoice);
 
         // Act
-        sut.sendInvoice(invoice, email, admin);
+        sut.sendInvoice(orderId, "test@example.com", admin);
     }
+
 
     @Test
     public void test_handleWebhook_completesPayment_givenValidPayload() throws IOException, ApiException {

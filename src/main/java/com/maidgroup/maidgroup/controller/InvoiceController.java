@@ -9,6 +9,7 @@ import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.InvoiceService;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.impl.InvoiceServiceImpl;
+import com.maidgroup.maidgroup.util.dto.EmailList;
 import com.maidgroup.maidgroup.util.dto.Requests.InvoiceRequest;
 import com.maidgroup.maidgroup.util.dto.Responses.InvoiceResponse;
 import com.maidgroup.maidgroup.util.square.WebhookSignatureVerifier;
@@ -97,7 +98,14 @@ public class InvoiceController {
 
     }
 
-    @GetMapping
+    @DeleteMapping("/order/{orderId}")
+    public String deleteByOrderId(@PathVariable("orderId") String orderId, Principal principal){
+        User authUser = userRepository.findByUsername(principal.getName());
+        invoiceService.deleteByOrderId(orderId, authUser);
+        return "The invoice with order ID " + orderId + " has been deleted.";
+    }
+
+    @GetMapping("/getInvoices")
     public @ResponseBody List<InvoiceResponse> getInvoices(Principal principal, @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date, @RequestParam(value = "status", required = false) PaymentStatus status, @RequestParam(value = "sort", required = false) String sort) {
         User authUser = userRepository.findByUsername(principal.getName());
         List<Invoice> invoices = invoiceService.getInvoices(authUser, date, status, sort);
@@ -108,6 +116,14 @@ public class InvoiceController {
     public InvoiceResponse getInvoiceById(@PathVariable("id") Long id, Principal principal){
         User authUser = userRepository.findByUsername(principal.getName());
         Invoice invoice = invoiceService.getInvoiceById(id, authUser);
+        InvoiceResponse invoiceResponse = new InvoiceResponse(invoice);
+        return invoiceResponse;
+    }
+
+    @GetMapping("/orderId/{orderId}")
+    public InvoiceResponse getInvoiceByOrderId(@PathVariable("orderId") String orderId, Principal principal){
+        User authUser = userRepository.findByUsername(principal.getName());
+        Invoice invoice = invoiceService.getInvoiceByOrderId(orderId, authUser);
         InvoiceResponse invoiceResponse = new InvoiceResponse(invoice);
         return invoiceResponse;
     }
@@ -138,19 +154,19 @@ public class InvoiceController {
         return new InvoiceResponse(updatedInvoice);
     }
 
-    @PostMapping("/sendLink")
-    public String sendPaymentLink(@RequestBody Invoice invoice, Principal principal) {
+    @PostMapping("/sendLink/{orderId}")
+    public String sendPaymentLink(@PathVariable("orderId") String orderId, Principal principal) {
         User authUser = userRepository.findByUsername(principal.getName());
-        // generate payment link and send it to user
+        Invoice invoice = invoiceService.getInvoiceByOrderId(orderId, authUser);
         invoiceService.sendPaymentLink(invoice, authUser);
         return "A new payment link has been sent.";
     }
 
-    @PostMapping("/sendInvoice")
-    public String sendInvoice(@RequestBody Invoice invoice, @RequestParam List<String> emails, Principal principal) {
+    @PostMapping("/sendInvoice/{orderId}")
+    public String sendInvoice(@PathVariable("orderId") String orderId, @RequestBody EmailList emailList, Principal principal) {
         User authUser = userRepository.findByUsername(principal.getName());
-        for (String email : emails) {
-            invoiceService.sendInvoice(invoice, email, authUser);
+        for (String email : emailList.getEmails()) {
+            invoiceService.sendInvoice(orderId, email, authUser);
         }
         return "This invoice has been sent out!";
     }

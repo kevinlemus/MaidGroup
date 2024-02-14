@@ -2,6 +2,9 @@ package com.maidgroup.maidgroup.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.i18n.phonenumbers.NumberParseException;
+import com.google.i18n.phonenumbers.PhoneNumberUtil;
+import com.google.i18n.phonenumbers.Phonenumber;
 import com.maidgroup.maidgroup.dao.InvoiceRepository;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.Invoice;
@@ -11,6 +14,7 @@ import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.InvoiceService;
 import com.maidgroup.maidgroup.service.exceptions.*;
+import com.maidgroup.maidgroup.util.dto.Responses.InvoiceResponse;
 import com.maidgroup.maidgroup.util.payment.PaymentLinkGenerator;
 import com.maidgroup.maidgroup.util.square.mock.SquareClientWrapper;
 import com.maidgroup.maidgroup.util.square.mock.SquareClientWrapperImpl;
@@ -27,6 +31,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -35,6 +41,7 @@ import java.util.stream.Collectors;
 
 @Log4j2
 @NoArgsConstructor
+@Transactional
 @Service
 public class InvoiceServiceImpl implements InvoiceService {
 
@@ -70,6 +77,16 @@ public class InvoiceServiceImpl implements InvoiceService {
         return this.squareClientWrapper;
     }
 
+    public boolean isValidPhoneNumber(String phoneNumber) {
+        PhoneNumberUtil phoneNumberUtil = PhoneNumberUtil.getInstance();
+        try {
+            Phonenumber.PhoneNumber numberProto = phoneNumberUtil.parse(phoneNumber, "US");
+            return phoneNumberUtil.isValidNumber(numberProto);
+        } catch (NumberParseException e) {
+            return false;
+        }
+    }
+
     @Transactional
     @Override //Checking for all invoice information
     public void validateInvoice(Invoice invoice) {
@@ -81,7 +98,12 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
         EmailValidator emailValidator = EmailValidator.getInstance();
         if (invoice.getClientEmail() == null || invoice.getClientEmail().isEmpty() || !emailValidator.isValid(invoice.getClientEmail())) {
-            throw new InvalidEmailException("Email is required");
+            throw new InvalidEmailException("Email is invalid");
+        }
+        if (invoice.getPhoneNumber() != null) {
+            if (!isValidPhoneNumber(invoice.getPhoneNumber())) {
+                throw new InvalidPhoneNumberException("Phone number is invalid");
+            }
         }
         if (invoice.getStreet() == null || invoice.getStreet().isEmpty()) {
             throw new InvalidInvoiceException("Address is required");
@@ -202,6 +224,23 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Transactional
     @Override
+    public void deleteByOrderId(String orderId, User requester) {
+        Invoice invoiceToDelete = invoiceRepository.findByOrderId(orderId);
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
+        if(invoiceToDelete != null){
+            if(isAdmin) {
+                invoiceRepository.delete(invoiceToDelete);
+            } else {
+                throw new UnauthorizedException("You are not authorized to delete invoices.");
+            }
+        } else {
+            throw new InvoiceNotFoundException("No invoice with the order ID " + orderId + " exists.");
+        }
+    }
+
+
+    @Transactional
+    @Override
     public List<Invoice> getInvoices(User requester, LocalDate date, PaymentStatus status, String sort) {
         List<Invoice> invoices;
         boolean isAdmin = requester.getRole().equals(Role.ADMIN);
@@ -268,10 +307,32 @@ public class InvoiceServiceImpl implements InvoiceService {
         Invoice retrievedInvoice = invoice.get();
 
         boolean isAdmin = requester.getRole().equals(Role.ADMIN);
-        boolean isOwner = retrievedInvoice.getUser().equals(requester);
+
+        User invoiceUser = retrievedInvoice.getUser();
+        boolean isOwner = invoiceUser != null && invoiceUser.equals(requester);
 
         if (isAdmin || isOwner) {
             return retrievedInvoice;
+        } else {
+            throw new UnauthorizedException("You are not authorized to view this invoice.");
+        }
+    }
+
+    @Transactional
+    @Override
+    public Invoice getInvoiceByOrderId(String orderId, User requester) {
+        Invoice invoice = invoiceRepository.findByOrderId(orderId);
+        if(invoice == null){
+            throw new InvoiceNotFoundException("No invoice was found for the provided order ID.");
+        }
+
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
+
+        User invoiceUser = invoice.getUser();
+        boolean isOwner = invoiceUser != null && invoiceUser.equals(requester);
+
+        if (isAdmin || isOwner) {
+            return invoice;
         } else {
             throw new UnauthorizedException("You are not authorized to view this invoice.");
         }
@@ -302,8 +363,21 @@ public class InvoiceServiceImpl implements InvoiceService {
         if (updatedInvoice.getDate() != null) existingInvoice.setDate(updatedInvoice.getDate());
         if (updatedInvoice.getFirstName() != null) existingInvoice.setFirstName(updatedInvoice.getFirstName());
         if (updatedInvoice.getLastName() != null) existingInvoice.setLastName(updatedInvoice.getLastName());
-        if (updatedInvoice.getClientEmail() != null) existingInvoice.setClientEmail(updatedInvoice.getClientEmail());
-        if (updatedInvoice.getPhoneNumber() != null) existingInvoice.setPhoneNumber(updatedInvoice.getPhoneNumber());
+        EmailValidator emailValidator = EmailValidator.getInstance();
+        if (updatedInvoice.getClientEmail() != null){
+            if(emailValidator.isValid(updatedInvoice.getClientEmail())){
+                existingInvoice.setClientEmail(updatedInvoice.getClientEmail());
+            } else {
+                throw new InvalidEmailException("Email is invalid. Please provide a working email.");
+            }
+        }
+        if (updatedInvoice.getPhoneNumber() != null){
+            if (isValidPhoneNumber(updatedInvoice.getPhoneNumber())) {
+                existingInvoice.setPhoneNumber(updatedInvoice.getPhoneNumber());
+            } else {
+                throw new InvalidPhoneNumberException("Phone number is invalid. Please provide a working phone number.");
+            }
+        }
         if (updatedInvoice.getTotalPrice() != 0) existingInvoice.setTotalPrice(updatedInvoice.getTotalPrice());
         if (updatedInvoice.getStatus() != null) existingInvoice.setStatus(updatedInvoice.getStatus());
         if (updatedInvoice.getUser() != null) existingInvoice.setUser(updatedInvoice.getUser());
@@ -318,6 +392,9 @@ public class InvoiceServiceImpl implements InvoiceService {
     public void sendPaymentLink(Invoice invoice, User user) {
         if (!user.getRole().equals(Role.ADMIN)) {
             throw new UnauthorizedException("You are not authorized to update this invoice.");
+        }
+        if (invoice.getStatus().equals(PaymentStatus.PAID)){
+            throw new InvoiceAlreadyPaidException("Invoice " + invoice.getOrderId() + " has already been paid. Cannot send payment link.");
         }
         // generate a unique idempotency key
         String idempotencyKey = UUID.randomUUID().toString();
@@ -352,10 +429,16 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     @Transactional
-    public void sendInvoice(Invoice invoice, String email, User user) {
+    public void sendInvoice(String orderId, String email, User user) {
         if (!user.getRole().equals(Role.ADMIN)) {
             throw new UnauthorizedException("You are not authorized to update this invoice.");
         }
+
+        Invoice invoice = invoiceRepository.findByOrderId(orderId);
+        if (invoice == null) {
+            throw new InvoiceNotFoundException("No invoice with the order ID " + orderId + " exists.");
+        }
+
         if (invoice.getStatus() != PaymentStatus.PAID) {
             throw new InvalidInvoiceException("Cannot send an invoice that is not paid.");
         }
@@ -364,6 +447,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         String body = "Here is your invoice: ..."; // HTML invoice template here
         emailService.sendEmail(email, subject, body);
     }
+
 
     public void handleWebhook(String payload) throws IOException, ApiException {
         log.info("Payload: {}", payload);

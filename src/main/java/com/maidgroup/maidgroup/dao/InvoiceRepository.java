@@ -13,7 +13,6 @@ import java.util.List;
 @Repository
 public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     Invoice findByOrderId(String orderId);
-    Invoice findBySquareOrderId(String squareOrderId);
     List<Invoice> findByUser(User user);
     List<Invoice> findByStatusAndDateBefore(PaymentStatus status, LocalDate date);
 }

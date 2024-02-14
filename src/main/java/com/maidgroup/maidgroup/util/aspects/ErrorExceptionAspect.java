@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.maidgroup.maidgroup.service.exceptions.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
@@ -97,18 +96,23 @@ public class ErrorExceptionAspect {
 
     @ExceptionHandler({InvalidInvoiceException.class})
     @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public @ResponseBody String handInvalidInvoiceException(InvalidInvoiceException e) {
+    public String handInvalidInvoiceException(InvalidInvoiceException e) {
         return e.getMessage();
     }
     @ExceptionHandler({InvoiceNotFoundException.class})
     @ResponseStatus(value = HttpStatus.NOT_FOUND)
-    public @ResponseBody String handleInvoiceNotFoundException(InvoiceNotFoundException e) {
+    public String handleInvoiceNotFoundException(InvoiceNotFoundException e) {
         return e.getMessage();
     }
     @ExceptionHandler({ResponseStatusException.class})
     @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public @ResponseBody String handleResponseStatusException(ResponseStatusException e) {
+    public String handleResponseStatusException(ResponseStatusException e) {
         return e.getMessage();
     }
 
+    @ExceptionHandler({InvoiceAlreadyPaidException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public String handleInvoiceAlreadyPaidException(InvoiceAlreadyPaidException e) {
+        return e.getMessage();
+    }
 }

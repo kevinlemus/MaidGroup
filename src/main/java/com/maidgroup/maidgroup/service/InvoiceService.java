@@ -16,10 +16,12 @@ public interface InvoiceService {
     void validateInvoice(Invoice invoice);
     void completePayment(Invoice invoice, String paymentStatus);
     void delete(Long invoiceId, User requester);
+    void deleteByOrderId(String orderId, User requester);
     List<Invoice> getInvoices(User requester, LocalDate date, PaymentStatus status, String sort);
     Invoice getInvoiceById(Long id, User requester);
+    Invoice getInvoiceByOrderId(String orderId, User requester);
     void sendPaymentLink(Invoice invoice, User user);
-    void sendInvoice(Invoice invoice, String email, User user);
+    void sendInvoice(String orderId, String email, User user);
     Invoice updateInvoice (User user, Invoice invoice);
     void handleWebhook(String payload) throws IOException, ApiException;
 }
