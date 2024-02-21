@@ -46,11 +46,6 @@ public class ConsultationServiceImpl implements ConsultationService {
     @Transactional
     @Override
     public Consultation create(Consultation consultation) {
-        Long id = consultation.getId();
-        Consultation retrievedConsultation = consultRepository.findById(id).orElse(null);
-        if(retrievedConsultation!=null){
-            throw new ConsultationAlreadyExists("Consultation already exists");
-        }
         EmailValidator emailValidator = EmailValidator.getInstance();
         if (!emailValidator.isValid(consultation.getEmail())) {
             throw new InvalidEmailException("Invalid email address");
@@ -103,7 +98,7 @@ public class ConsultationServiceImpl implements ConsultationService {
             emailService.sendEmail(consultation.getEmail(), "Consultation Booked", emailMessage);
         }
 
-        twilioSMS.sendSMS("+3019384728", adminMessage);
+        twilioSMS.sendSMS("+13019384728", adminMessage);
         emailService.sendEmail("info@maidgroup.com", "Consultation Booked", adminMessage);
 
         return consultation;
@@ -123,7 +118,7 @@ public class ConsultationServiceImpl implements ConsultationService {
 
     @Transactional
     @Override
-    public List<Consultation> getConsults(User requester, LocalDate date, ConsultationStatus status, PreferredContact preferredContact, String name, String sort) {
+    public List<Consultation> getConsults(User requester, LocalDate date, ConsultationStatus status, PreferredContact preferredContact, String name, String email, String sort) {
         List<Consultation> consultations = consultRepository.findAll();
         if (date != null) {
             consultations = consultations.stream()
@@ -145,6 +140,12 @@ public class ConsultationServiceImpl implements ConsultationService {
                     .filter(consultation -> consultation.getFirstName().contains(name) || consultation.getLastName().contains(name))
                     .collect(Collectors.toList());
         }
+        if (email != null) {
+            consultations = consultations.stream()
+                    .filter(consultation -> consultation.getEmail().equalsIgnoreCase(email))
+                    .collect(Collectors.toList());
+        }
+
         Optional<User> user = userRepository.findById(requester.getUserId());
         boolean isAdmin = requester.getRole().equals(Role.ADMIN);
 
@@ -216,7 +217,11 @@ public class ConsultationServiceImpl implements ConsultationService {
 
         if (user.isPresent()) {
             if (isAdmin) {
-                consultRepository.deleteAllById(ids);
+                List<Consultation> consultationsToDelete = consultRepository.findAllById(ids);
+                if (consultationsToDelete.size() != ids.size()) {
+                    throw new ConsultationNotFoundException("One or more consultations with the provided IDs were not found.");
+                }
+                consultRepository.deleteAll(consultationsToDelete);
             } else {
                 throw new UnauthorizedException("You are not authorized to delete these consultations.");
             }
@@ -225,53 +230,35 @@ public class ConsultationServiceImpl implements ConsultationService {
         }
     }
 
+
     @Transactional
     @Override
-    public void cancelConsultation(Long consultId, String from, String body) {
-        Optional<Consultation> optionalConsultation;
-        if (consultId != null) {
-            optionalConsultation = consultRepository.findById(consultId);
-        } else if (from != null) {
-            optionalConsultation = consultRepository.findByPhoneNumber(from);
-            if (optionalConsultation.isEmpty()) {
-                throw new ConsultationNotFoundException("There is no consultation associated with this phone number.");
-            }
-            if (!body.equalsIgnoreCase("CANCEL")) {
-                throw new InvalidSmsMessageException("Invalid message.");
-            }
-        } else {
-            throw new ConsultationNotFoundException("No consultation was found.");
-        }
+    public void cancelConsultation(Long consultId) {
+        Optional<Consultation> optionalConsultation = consultRepository.findById(consultId);
         if(optionalConsultation.isEmpty()){
-            throw new ConsultationNotFoundException("There is no consultation associated with this id or phone number.");
+            throw new ConsultationNotFoundException("There is no consultation associated with this id.");
         }
         Consultation consultation = optionalConsultation.get();
         consultation.setStatus(ConsultationStatus.CANCELLED);
         consultRepository.save(consultation);
         String clientMessage = "Your consultation has successfully been cancelled. Thank you for considering our services.";
         String adminMessage = "The following consultation has been cancelled: \n" + consultation;
-        twilioSMS.sendSMS(from, clientMessage);
-        twilioSMS.sendSMS("+3019384728", adminMessage);
+        twilioSMS.sendSMS(consultation.getPhoneNumber(), clientMessage);
+        twilioSMS.sendSMS("+13019384728", adminMessage);
         emailService.sendEmail("info@maidgroup.com", "Consultation Cancelled", adminMessage);
     }
 
+
     @Transactional
     @Override
-    public void cancelConsultationUniqueLink(String uniqueLink) {
+    public Consultation getConsultationByUniqueLink(String uniqueLink) {
         Optional<Consultation> optionalConsultation = consultRepository.findByUniqueLink(uniqueLink);
         if (optionalConsultation.isEmpty()) {
             throw new ConsultationNotFoundException("There is no consultation associated with this unique link.");
         }
-        Consultation consultation = optionalConsultation.get();
-        consultation.setStatus(ConsultationStatus.CANCELLED);
-        consultRepository.save(consultation);
-        String clientMessage = "Your consultation has successfully been cancelled. Thank you for considering our services.";
-        String adminMessage = "The following consultation has been cancelled: \n" + consultation;
-        // send email to user
-        emailService.sendEmail(consultation.getEmail(), "Consultation Cancelled", clientMessage);
-        twilioSMS.sendSMS("+3019384728", adminMessage);
-        emailService.sendEmail("info@maidgroup.com", "Consultation Cancelled", adminMessage);
+        return optionalConsultation.get();
     }
+
 
     public String generateUniqueLink() {
         SecureRandom random = new SecureRandom();

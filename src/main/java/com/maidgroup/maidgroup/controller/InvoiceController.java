@@ -106,9 +106,9 @@ public class InvoiceController {
     }
 
     @GetMapping("/getInvoices")
-    public @ResponseBody List<InvoiceResponse> getInvoices(Principal principal, @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date, @RequestParam(value = "status", required = false) PaymentStatus status, @RequestParam(value = "sort", required = false) String sort) {
+    public @ResponseBody List<InvoiceResponse> getInvoices(Principal principal, @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date, @RequestParam(value = "status", required = false) PaymentStatus status, @RequestParam(value = "sort", required = false) String sort, @RequestParam(value = "orderIdSuffix", required = false) String orderIdSuffix) {
         User authUser = userRepository.findByUsername(principal.getName());
-        List<Invoice> invoices = invoiceService.getInvoices(authUser, date, status, sort);
+        List<Invoice> invoices = invoiceService.getInvoices(authUser, date, status, sort, orderIdSuffix);
         return invoices.stream().map(InvoiceResponse::new).collect(Collectors.toList());
     }
 

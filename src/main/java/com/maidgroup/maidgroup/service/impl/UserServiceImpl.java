@@ -3,6 +3,7 @@ package com.maidgroup.maidgroup.service.impl;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.userinfo.Age;
+import com.maidgroup.maidgroup.model.userinfo.Gender;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.UserService;
@@ -222,16 +223,89 @@ public class UserServiceImpl implements UserService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<UserResponse> getAllUsers(User user) {
-        if(!user.getRole().equals(Role.ADMIN)){
+    public List<User> getAllUsers(User requester, String sort, String firstName, String lastName, Gender gender, String email) {
+        if(!requester.getRole().equals(Role.ADMIN)){
             throw new UnauthorizedException("You are not authorized to view all accounts.");
         }
         List<User> allUsers = userRepository.findAll();
         if(allUsers.isEmpty()) {
             throw new UserNotFoundException("No users were found.");
         }
-        return allUsers.stream().map(UserResponse::new).collect(Collectors.toList());
+
+        // Filter by first name
+        if (firstName != null) {
+            allUsers = allUsers.stream()
+                    .filter(u -> u.getFirstName().equalsIgnoreCase(firstName))
+                    .collect(Collectors.toList());
+        }
+
+        // Filter by last name
+        if (lastName != null) {
+            allUsers = allUsers.stream()
+                    .filter(u -> u.getLastName().equalsIgnoreCase(lastName))
+                    .collect(Collectors.toList());
+        }
+
+        // Filter by email
+        if (email != null) {
+            allUsers = allUsers.stream()
+                    .filter(u -> u.getEmail().equalsIgnoreCase(email))
+                    .collect(Collectors.toList());
+        }
+
+        // Filter by gender
+        if (gender != null) {
+            allUsers = allUsers.stream()
+                    .filter(u -> u.getGender().equals(gender))
+                    .collect(Collectors.toList());
+        }
+
+        // Sort
+        if (sort != null) {
+            switch (sort) {
+                case "usernameAsc":
+                    allUsers.sort(Comparator.comparing(User::getUsername));
+                    break;
+                case "usernameDesc":
+                    allUsers.sort(Comparator.comparing(User::getUsername).reversed());
+                    break;
+                case "firstNameAsc":
+                    allUsers.sort(Comparator.comparing(User::getFirstName));
+                    break;
+                case "firstNameDesc":
+                    allUsers.sort(Comparator.comparing(User::getFirstName).reversed());
+                    break;
+                case "lastNameAsc":
+                    allUsers.sort(Comparator.comparing(User::getLastName));
+                    break;
+                case "lastNameDesc":
+                    allUsers.sort(Comparator.comparing(User::getLastName).reversed());
+                    break;
+                case "emailAsc":
+                    allUsers.sort(Comparator.comparing(User::getEmail));
+                    break;
+                case "emailDesc":
+                    allUsers.sort(Comparator.comparing(User::getEmail).reversed());
+                    break;
+                case "ageAsc":
+                    allUsers.sort(Comparator.comparing(User::getAge));
+                    break;
+                case "ageDesc":
+                    allUsers.sort(Comparator.comparing(User::getAge).reversed());
+                    break;
+                case "genderAsc":
+                    allUsers.sort(Comparator.comparing(User::getGender));
+                    break;
+                case "genderDesc":
+                    allUsers.sort(Comparator.comparing(User::getGender).reversed());
+                    break;
+                // Add more cases as needed for other fields
+            }
+        }
+
+        return allUsers;
     }
+
 
     @Transactional(readOnly = true)
     @Override

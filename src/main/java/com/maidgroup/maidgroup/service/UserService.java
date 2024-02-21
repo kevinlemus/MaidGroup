@@ -1,8 +1,9 @@
 package com.maidgroup.maidgroup.service;
 
 import com.maidgroup.maidgroup.model.User;
+import com.maidgroup.maidgroup.model.userinfo.Gender;
 import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
-import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -12,7 +13,7 @@ public interface UserService {
     void logout(String token);
     User register(User user);
     User updateUser(User user);
-    List<UserResponse> getAllUsers(User user);
+    List<User> getAllUsers(User requester, String sort, String firstName, String lastName, Gender gender, String email);
     User getByUsername(String username, User requester);
     void delete(Long userId, User requester);
 

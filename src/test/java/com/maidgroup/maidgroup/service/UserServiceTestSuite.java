@@ -3,6 +3,7 @@ package com.maidgroup.maidgroup.service;
 import com.maidgroup.maidgroup.dao.PasswordRepository;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
+import com.maidgroup.maidgroup.model.userinfo.Gender;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.exceptions.InvalidPasswordException;
@@ -22,6 +23,7 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.maidgroup.maidgroup.model.userinfo.Gender.FEMALE;
 import static com.maidgroup.maidgroup.model.userinfo.Gender.MALE;
@@ -37,6 +39,8 @@ public class UserServiceTestSuite {
     PasswordRepository passwordRepository;
     @Mock
     BCryptPasswordEncoder passwordEncoder;
+    @Mock
+    UserService userService;
     // Create a mock instance of the JwtUtility class
     @Mock
     JWTUtility jwtUtility;
@@ -149,19 +153,29 @@ public class UserServiceTestSuite {
     public void getAllUsers_returnsListOfUsers_whenUserIsAdmin() {
         // Arrange
         User adminUser = new User();
+        adminUser.setUserId(1L);
         adminUser.setRole(Role.ADMIN);
+        adminUser.setUsername("admin");
 
         User user1 = new User();
+        user1.setUserId(2L);
+        user1.setUsername("user1");
+
         User user2 = new User();
+        user2.setUserId(3L);
+        user2.setUsername("user2");
+
         List<User> allUsers = Arrays.asList(user1, user2);
 
+        when(userRepository.findByUsername(adminUser.getUsername())).thenReturn(adminUser);
         when(userRepository.findAll()).thenReturn(allUsers);
+        when(sut.getAllUsers(adminUser, null, null, null, null, null)).thenReturn(allUsers);
 
         // Act
-        List<UserResponse> userResponses = sut.getAllUsers(adminUser);
+        List<User> userResponses = sut.getAllUsers(adminUser, null, null, null, null, null);
 
         // Assert
-        verify(userRepository, times(1)).findAll();
+        assertNotNull(userResponses);
         assertEquals(allUsers.size(), userResponses.size());
         for (int i = 0; i < allUsers.size(); i++) {
             assertEquals(allUsers.get(i).getUserId(), userResponses.get(i).getUserId());

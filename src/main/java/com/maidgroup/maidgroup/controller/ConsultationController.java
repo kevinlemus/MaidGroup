@@ -54,14 +54,14 @@ public class ConsultationController {
         return consultResponse;
     }
 
-    @GetMapping
-    public @ResponseBody List<ConsultResponse> getConsults(Principal principal, @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date, @RequestParam(value = "status", required = false) ConsultationStatus status, @RequestParam(value = "preferredContact", required = false) PreferredContact preferredContact, @RequestParam(value = "name", required = false) String name, @RequestParam(value = "sort", required = false) String sort) {
+    @GetMapping("/getConsultations")
+    public @ResponseBody List<ConsultResponse> getConsults(Principal principal, @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date, @RequestParam(value = "status", required = false) ConsultationStatus status, @RequestParam(value = "preferredContact", required = false) PreferredContact preferredContact, @RequestParam(value = "name", required = false) String name, @RequestParam(value = "email", required = false) String email, @RequestParam(value = "sort", required = false) String sort) {
         User authUser = userRepository.findByUsername(principal.getName());
-        List<Consultation> consultations = consultService.getConsults(authUser, date, status, preferredContact, name, sort);
+        List<Consultation> consultations = consultService.getConsults(authUser, date, status, preferredContact, name, email, sort);
         return consultations.stream().map(ConsultResponse::new).collect(Collectors.toList());
     }
 
-    @DeleteMapping
+    @DeleteMapping("/deleteConsultations")
     public String deleteConsultations(Principal principal, @RequestParam(value = "ids") List<Long> ids) {
         User authUser = userRepository.findByUsername(principal.getName());
         consultService.deleteConsultations(authUser, ids);
@@ -77,20 +77,21 @@ public class ConsultationController {
 
     @Value("${app.cancelEndpointEnabled}")
     private boolean cancelEndpointEnabled;
-    @PutMapping("/{id}/cancel")
-    public String cancelConsultation(@PathVariable(value = "id", required = false) Long id, @RequestParam(value = "from", required = false) String from, @RequestBody(required = false) String body) {
+    @PutMapping("/cancel/{id}")
+    public String cancelConsultation(@PathVariable(value = "id", required = false) Long id) {
         if (!cancelEndpointEnabled) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Endpoint not found");
         }
-        consultService.cancelConsultation(id, from, body);
+        consultService.cancelConsultation(id);
         return "This consultation has been cancelled.";
     }
 
-    @PutMapping("/cancel/{uniqueLink}")
-    public String cancelConsultationUniqueLink(@PathVariable String uniqueLink) {
-        consultService.cancelConsultationUniqueLink(uniqueLink);
-        return "This consultation has been cancelled.";
+
+    @GetMapping("/link/{uniqueLink}")
+    public Consultation getConsultationByUniqueLink(@PathVariable String uniqueLink) {
+        return consultService.getConsultationByUniqueLink(uniqueLink);
     }
+
 
 
     /*

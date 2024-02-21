@@ -396,7 +396,7 @@ public class InvoiceServiceTestSuite {
         when(invoiceRepository.findAll()).thenReturn(expectedInvoices);
 
         // Act
-        List<Invoice> actualInvoices = sut.getInvoices(requester, null, null, null);
+        List<Invoice> actualInvoices = sut.getInvoices(requester, null, null, null, null);
 
         // Assert
         assertEquals(expectedInvoices, actualInvoices);
@@ -412,7 +412,7 @@ public class InvoiceServiceTestSuite {
         when(invoiceRepository.findAll()).thenReturn(new ArrayList<>());
 
         // Act
-        sut.getInvoices(requester, null, null, null);
+        sut.getInvoices(requester, null, null, null, null);
     }
 
     @Test

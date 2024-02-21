@@ -1,6 +1,7 @@
 package com.maidgroup.maidgroup.util.aspects;
 
 import com.maidgroup.maidgroup.dao.Secured;
+import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.service.exceptions.UnauthorizedException;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -32,7 +33,7 @@ public class AuthAspect {
         String token = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getHeader("Authorization");
         if(!jwtUtility.isTokenValid(token)) throw new UnauthorizedException("No token found");
 
-        if(!annotation.isAdmin() && !jwtUtility.extractTokenDetails(token).getRole().toString().equals("ADMIN")){
+        if(annotation.isAdmin() && !jwtUtility.extractTokenDetails(token).getRole().equals(Role.ADMIN)){
             throw new UnauthorizedException("User does not have administrative permission to access this endpoint.");
         }
 

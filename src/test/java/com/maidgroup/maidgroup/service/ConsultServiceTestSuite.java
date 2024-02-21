@@ -142,7 +142,7 @@ public class ConsultServiceTestSuite {
         when(userRepository.findById(any(Long.class))).thenReturn(Optional.of(requester));
 
         // Act
-        List<Consultation> actualConsultations = sut.getConsults(requester, LocalDate.now(), ConsultationStatus.OPEN, PreferredContact.Email, "Test", "recent");
+        List<Consultation> actualConsultations = sut.getConsults(requester, LocalDate.now(), ConsultationStatus.OPEN, PreferredContact.Email, "Test", null, "recent");
 
         // Assert
         assertNotNull(actualConsultations);
@@ -160,7 +160,7 @@ public class ConsultServiceTestSuite {
         when(userRepository.findById(any(Long.class))).thenReturn(Optional.of(requester));
 
         // Act
-        sut.getConsults(requester, null, null, null, null, null);
+        sut.getConsults(requester, null, null, null, null, null, null);
     }
 
     @Test(expected = UserNotFoundException.class)
@@ -173,7 +173,7 @@ public class ConsultServiceTestSuite {
         when(userRepository.findById(any(Long.class))).thenReturn(Optional.empty());
 
         // Act
-        sut.getConsults(requester, null, null, null, null, null);
+        sut.getConsults(requester, null, null, null, null, null, null);
     }
 
     @Test
@@ -283,7 +283,7 @@ public class ConsultServiceTestSuite {
         doNothing().when(emailService).sendEmail(anyString(), anyString(), anyString());
 
         // Act
-        sut.cancelConsultation(1L, null, null);
+        sut.cancelConsultation(1L);
 
         // Assert
         assertEquals(ConsultationStatus.CANCELLED, consultation.getStatus());
@@ -296,76 +296,35 @@ public class ConsultServiceTestSuite {
         when(consultRepository.findById(any(Long.class))).thenReturn(Optional.empty());
 
         // Act
-        sut.cancelConsultation(1L, null, null);
+        sut.cancelConsultation(1L);
     }
+
 
     @Test
-    public void test_cancelConsultation_cancelsConsultation_givenValidPhoneNumberAndBody() {
-        // Arrange
-        Consultation consultation = new Consultation();
-        consultation.setId(1L);
-        consultation.setPhoneNumber("+12025551234");
-
-        when(consultRepository.findByPhoneNumber(anyString())).thenReturn(Optional.of(consultation));
-        doNothing().when(twilioSMS).sendSMS(anyString(), anyString());
-        doNothing().when(emailService).sendEmail(anyString(), anyString(), anyString());
-
-        // Act
-        sut.cancelConsultation(null, "+12025551234", "CANCEL");
-
-        // Assert
-        assertEquals(ConsultationStatus.CANCELLED, consultation.getStatus());
-        verify(consultRepository, times(1)).save(consultation);
-    }
-
-    @Test(expected = InvalidSmsMessageException.class)
-    public void test_cancelConsultation_throwsInvalidSmsMessageException_givenInvalidBody() {
-        // Arrange
-        Consultation consultation = new Consultation();
-        consultation.setId(1L);
-        consultation.setPhoneNumber("+12025551234");
-
-        when(consultRepository.findByPhoneNumber(anyString())).thenReturn(Optional.of(consultation));
-
-        // Act
-        sut.cancelConsultation(null, "+12025551234", "INVALID");
-    }
-
-    @Test(expected = ConsultationNotFoundException.class)
-    public void test_cancelConsultation_throwsConsultationNotFoundException_givenInvalidPhoneNumber() {
-        // Arrange
-        when(consultRepository.findByPhoneNumber(anyString())).thenReturn(Optional.empty());
-
-        // Act
-        sut.cancelConsultation(null, "+12025551234", "CANCEL");
-    }
-
-    @Test
-    public void test_cancelConsultationUniqueLink_cancelsConsultation_givenValidUniqueLink() {
+    public void test_getConsultationByUniqueLink_returnsConsultation_givenValidUniqueLink() {
         // Arrange
         Consultation consultation = new Consultation();
         consultation.setUniqueLink("uniqueLink");
 
         when(consultRepository.findByUniqueLink(anyString())).thenReturn(Optional.of(consultation));
-        doNothing().when(twilioSMS).sendSMS(anyString(), anyString());
-        doNothing().when(emailService).sendEmail(anyString(), anyString(), anyString());
 
         // Act
-        sut.cancelConsultationUniqueLink("uniqueLink");
+        Consultation result = sut.getConsultationByUniqueLink("uniqueLink");
 
         // Assert
-        assertEquals(ConsultationStatus.CANCELLED, consultation.getStatus());
-        verify(consultRepository, times(1)).save(consultation);
+        assertEquals(consultation, result);
+        verify(consultRepository, times(1)).findByUniqueLink("uniqueLink");
     }
 
     @Test(expected = ConsultationNotFoundException.class)
-    public void test_cancelConsultationUniqueLink_throwsConsultationNotFoundException_givenInvalidUniqueLink() {
+    public void test_getConsultationByUniqueLink_throwsConsultationNotFoundException_givenInvalidUniqueLink() {
         // Arrange
         when(consultRepository.findByUniqueLink(anyString())).thenReturn(Optional.empty());
 
         // Act
-        sut.cancelConsultationUniqueLink("invalidLink");
+        sut.getConsultationByUniqueLink("invalidLink");
     }
+
 
     @Test
     public void test_generateUniqueLink_returnsUniqueLink() {

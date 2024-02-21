@@ -73,7 +73,9 @@ public class WebSecurityConfig {
                 .requestMatchers(new AntPathRequestMatcher("/v3/api-docs/swagger-config")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/v3/api-docs/controller-api")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/error")).permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers(new AntPathRequestMatcher("/maidgroup/consultation/cancel/**")).permitAll()
+                .requestMatchers(new AntPathRequestMatcher("/maidgroup/consultation/link/**")).permitAll()
+                //.anyRequest().authenticated()
                 .and()
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();

@@ -17,7 +17,7 @@ public interface InvoiceService {
     void completePayment(Invoice invoice, String paymentStatus);
     void delete(Long invoiceId, User requester);
     void deleteByOrderId(String orderId, User requester);
-    List<Invoice> getInvoices(User requester, LocalDate date, PaymentStatus status, String sort);
+    List<Invoice> getInvoices(User requester, LocalDate date, PaymentStatus status, String sort, String orderIdSuffix);
     Invoice getInvoiceById(Long id, User requester);
     Invoice getInvoiceByOrderId(String orderId, User requester);
     void sendPaymentLink(Invoice invoice, User user);

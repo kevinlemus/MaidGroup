@@ -14,7 +14,7 @@ public interface ConsultationService {
 
     Consultation create(Consultation consultation);
 
-    List<Consultation> getConsults(User requester, LocalDate date, ConsultationStatus status, PreferredContact preferredContact, String name, String sort);
+    List<Consultation> getConsults(User requester, LocalDate date, ConsultationStatus status, PreferredContact preferredContact, String name, String email, String sort);
 
     Consultation getConsultById(Long id);
 
@@ -22,10 +22,8 @@ public interface ConsultationService {
 
     void deleteConsultations(User requester, List<Long> ids);
 
-    void cancelConsultation(Long consultId, String from, String body);
-
-    void cancelConsultationUniqueLink(String uniqueLink);
-
+    void cancelConsultation(Long consultId);
+    Consultation getConsultationByUniqueLink(String uniqueLink);
 
 
 /*

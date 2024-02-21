@@ -3,11 +3,13 @@ package com.maidgroup.maidgroup.controller;
 import com.maidgroup.maidgroup.dao.Secured;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
+import com.maidgroup.maidgroup.model.userinfo.Gender;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.util.dto.LoginCreds;
 import com.maidgroup.maidgroup.util.dto.Requests.UserRequest;
+import com.maidgroup.maidgroup.util.dto.Responses.InvoiceResponse;
 import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import jakarta.servlet.http.Cookie;
@@ -26,6 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 @RestController
@@ -139,12 +142,14 @@ public class UserController {
     }
 
     @GetMapping("/getAllUsers")
-    @Secured(isAdmin = true)
-    public @ResponseBody List<UserResponse> getAllUsers(Principal principal){
+    //@Secured(isAdmin = true)
+    public @ResponseBody List<UserResponse> getAllUsers(Principal principal, @RequestParam(value = "sort", required = false) String sort, @RequestParam(value = "firstName", required = false) String firstName, @RequestParam(value = "lastName", required = false) String lastName, @RequestParam(value = "gender", required = false) Gender gender, @RequestParam(value = "email", required = false) String email){
         User authUser = userRepository.findByUsername(principal.getName());
-        List<UserResponse> allUsers = userService.getAllUsers(authUser);
-        return allUsers;
+        List<User> allUsers = userService.getAllUsers(authUser, sort, firstName, lastName, gender, email);
+        return allUsers.stream().map(UserResponse::new).collect(Collectors.toList());
     }
+
+
 
     @GetMapping("/{username}")
     public UserResponse getByUsername(@PathVariable("username") String username, Principal principal){

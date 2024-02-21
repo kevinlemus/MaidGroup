@@ -241,7 +241,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Transactional
     @Override
-    public List<Invoice> getInvoices(User requester, LocalDate date, PaymentStatus status, String sort) {
+    public List<Invoice> getInvoices(User requester, LocalDate date, PaymentStatus status, String sort, String orderIdSuffix) {
         List<Invoice> invoices;
         boolean isAdmin = requester.getRole().equals(Role.ADMIN);
 
@@ -249,7 +249,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             // If the requester is an admin, get all invoices
             invoices = invoiceRepository.findAll();
         } else {
-            // If the requester is not an admin, get only their invoicesSSS
+            // If the requester is not an admin, get only their invoices
             invoices = invoiceRepository.findByUser(requester);
         }
 
@@ -267,6 +267,12 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         if (invoices.isEmpty()) {
             throw new InvoiceNotFoundException("No invoices were found.");
+        }
+
+        if (orderIdSuffix != null) {
+            invoices = invoices.stream()
+                    .filter(invoice -> invoice.getOrderId().endsWith(orderIdSuffix))
+                    .collect(Collectors.toList());
         }
 
         if (sort != null) {
