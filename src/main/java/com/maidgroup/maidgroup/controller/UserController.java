@@ -74,6 +74,12 @@ public class UserController {
         return userResponse;
     }
 
+    @PostMapping("/{id}/deactivate")
+    public String deactivateAccount(@PathVariable Long id) {
+        userService.deactivateAccount(id);
+        return "Your account has been deactivated. It will be deleted after 30 days unless you reactivate it.";
+    }
+
     @PostMapping("/login")
     public UserResponse login(@RequestBody LoginCreds loginCreds, HttpServletResponse response){
         User authUser = userService.login(loginCreds.getUsername(), loginCreds.getPassword());
@@ -87,7 +93,6 @@ public class UserController {
 
         return userResponse;
     }
-
     @PostMapping("/logout")
     public String logout(@RequestBody UserRequest logoutRequest, HttpServletRequest request, HttpServletResponse response){
         String jwt = logoutRequest.getJwt();

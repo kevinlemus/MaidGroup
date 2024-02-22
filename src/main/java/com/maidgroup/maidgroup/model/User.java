@@ -44,5 +44,6 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
     private int age;
+    private LocalDate deactivationDate;
 
 }

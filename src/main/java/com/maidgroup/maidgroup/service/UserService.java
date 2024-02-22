@@ -16,5 +16,6 @@ public interface UserService {
     List<User> getAllUsers(User requester, String sort, String firstName, String lastName, Gender gender, String email);
     User getByUsername(String username, User requester);
     void delete(Long userId, User requester);
+    void deactivateAccount(Long userId);
 
 }

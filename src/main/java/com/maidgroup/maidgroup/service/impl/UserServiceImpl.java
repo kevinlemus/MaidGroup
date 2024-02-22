@@ -45,19 +45,31 @@ public class UserServiceImpl implements UserService {
         this.jwtUtility = jwtUtility;
     }
 
+    @Transactional
+    public void deactivateAccount(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("No user was found."));
+        user.setDeactivationDate(LocalDate.now());
+        userRepository.save(user);
+    }
+
     @Override
     public User login(String username, String password) {
-        User u = userRepository.findByUsername(username)/*.orElseThrow(UserNotFoundException::new)*/;
-        log.debug("Password being encoded: {}", password);
-        log.debug("Encoded password: {}", u.getPassword().getHashedPassword());
-        log.debug("Passed in password after being encoded: {}", passwordEncoder.encode(password));
+        User u = userRepository.findByUsername(username);
+        if (u == null) {
+            throw new UserNotFoundException("User not found.");
+        }
 
         boolean matches = passwordEncoder.matches(password, u.getPassword().getHashedPassword());
-        log.debug("passwordEncoder.matches() result: {}", matches);
 
-        if(u != null && passwordEncoder.matches(password, u.getPassword().getHashedPassword())){
+        if (u != null && matches) {
+            // If the user is deactivated, reactivate the account
+            if (u.getDeactivationDate() != null) {
+                u.setDeactivationDate(null);
+                userRepository.save(u);
+            }
             return u;
-        }else{
+        } else {
             throw new InvalidCredentialsException("The provided credentials were incorrect.");
         }
     }

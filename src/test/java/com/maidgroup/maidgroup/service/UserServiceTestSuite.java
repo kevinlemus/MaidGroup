@@ -7,6 +7,7 @@ import com.maidgroup.maidgroup.model.userinfo.Gender;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.exceptions.InvalidPasswordException;
+import com.maidgroup.maidgroup.service.exceptions.UserNotFoundException;
 import com.maidgroup.maidgroup.service.impl.UserServiceImpl;
 import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
@@ -100,6 +101,26 @@ public class UserServiceTestSuite {
         Assert.assertNotNull(user);
     }
 
+    @Test
+    public void login_reactivatesUser_whenUserIsDeactivated() {
+        // Arrange
+        String username = "missypfoo";
+        String password = "Missypfoo20!";
+        User deactivatedUser = new User();
+        deactivatedUser.setUsername(username);
+        deactivatedUser.setPassword(new Password(passwordEncoder.encode(password)));
+        deactivatedUser.setDeactivationDate(LocalDate.now());
+
+        when(userRepository.findByUsername(username)).thenReturn(deactivatedUser);
+        when(passwordEncoder.matches(password, deactivatedUser.getPassword().getHashedPassword())).thenReturn(true);
+
+        // Act
+        User user = sut.login(username, password);
+
+        // Assert
+        assertNull(user.getDeactivationDate());
+        verify(userRepository, times(1)).save(user);
+    }
     @Test
     public void updateUser_returnsSuccessfulUpdate_givenExistingUserUpdates() {
         // Arrange
@@ -247,9 +268,30 @@ public class UserServiceTestSuite {
         assertThrows(InvalidPasswordException.class, () -> sut.register(user));
     }
 
+    @Test
+    public void deactivateAccount_deactivatesUser_whenUserExists() {
+        // Arrange
+        User existingUser = new User();
+        existingUser.setUserId(1L);
 
+        when(userRepository.findById(existingUser.getUserId())).thenReturn(Optional.of(existingUser));
 
+        // Act
+        sut.deactivateAccount(existingUser.getUserId());
 
+        // Assert
+        assertNotNull(existingUser.getDeactivationDate());
+        verify(userRepository, times(1)).save(existingUser);
+    }
 
+    @Test(expected = UserNotFoundException.class)
+    public void deactivateAccount_throwsUserNotFoundException_whenUserDoesNotExist() {
+        // Arrange
+        Long nonExistentUserId = 1L;
+        when(userRepository.findById(nonExistentUserId)).thenReturn(Optional.empty());
+
+        // Act
+        sut.deactivateAccount(nonExistentUserId);
+    }
 
 }

@@ -27,6 +27,7 @@ public class UserResponse {
     private LocalDate dateOfBirth;
     private Role role;
     private int age;
+    private LocalDate deactivationDate;
 
     public UserResponse(User user) {
         this.userId = user.getUserId();
@@ -40,5 +41,6 @@ public class UserResponse {
         this.dateOfBirth = user.getDateOfBirth();
         this.role = user.getRole();
         this.age = user.getAge();
+        this.deactivationDate = user.getDeactivationDate();
     }
 }

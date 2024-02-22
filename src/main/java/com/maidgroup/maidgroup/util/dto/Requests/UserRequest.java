@@ -47,7 +47,7 @@ public class UserRequest {
     @NotNull
     @Min(value = 0)
     private int age;
-
+    private LocalDate deactivationDate;
     private String jwt;
 }
 
