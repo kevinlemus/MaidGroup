@@ -7,10 +7,14 @@ import com.maidgroup.maidgroup.model.userinfo.Gender;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.exceptions.InvalidPasswordException;
+import com.maidgroup.maidgroup.service.exceptions.InvalidTokenException;
 import com.maidgroup.maidgroup.service.exceptions.UserNotFoundException;
 import com.maidgroup.maidgroup.service.impl.UserServiceImpl;
+import com.maidgroup.maidgroup.util.dto.Requests.ForgotPasswordRequest;
+import com.maidgroup.maidgroup.util.dto.Requests.ResetPasswordRequest;
 import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
+import jakarta.validation.constraints.Email;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -37,14 +41,14 @@ public class UserServiceTestSuite {
     @Mock
     UserRepository userRepository;
     @Mock
-    PasswordRepository passwordRepository;
-    @Mock
     BCryptPasswordEncoder passwordEncoder;
     @Mock
     UserService userService;
     // Create a mock instance of the JwtUtility class
     @Mock
     JWTUtility jwtUtility;
+    @Mock
+    EmailService emailService;
 
     @Before
     public void testPrep() {
@@ -273,11 +277,14 @@ public class UserServiceTestSuite {
         // Arrange
         User existingUser = new User();
         existingUser.setUserId(1L);
+        existingUser.setUsername("testUser");
+        existingUser.setRole(Role.USER);
 
         when(userRepository.findById(existingUser.getUserId())).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByUsername(existingUser.getUsername())).thenReturn(existingUser);
 
         // Act
-        sut.deactivateAccount(existingUser.getUserId());
+        sut.deactivateAccount(existingUser.getUserId(), existingUser);
 
         // Assert
         assertNotNull(existingUser.getDeactivationDate());
@@ -288,10 +295,68 @@ public class UserServiceTestSuite {
     public void deactivateAccount_throwsUserNotFoundException_whenUserDoesNotExist() {
         // Arrange
         Long nonExistentUserId = 1L;
+        User authUser = new User();
+        authUser.setUserId(2L);
+        authUser.setUsername("authUser");
+        authUser.setRole(Role.USER);
+
         when(userRepository.findById(nonExistentUserId)).thenReturn(Optional.empty());
+        when(userRepository.findByUsername(authUser.getUsername())).thenReturn(authUser);
 
         // Act
-        sut.deactivateAccount(nonExistentUserId);
+        sut.deactivateAccount(nonExistentUserId, authUser);
     }
 
+    @Test
+    public void forgotPassword_sendsEmail_whenUserExists() {
+        // Arrange
+        ForgotPasswordRequest request = new ForgotPasswordRequest("testUser");
+        User existingUser = new User();
+        existingUser.setEmail("testUser@example.com");
+        when(userRepository.findByEmailOrUsername(request.getEmailOrUsername())).thenReturn(existingUser);
+
+        // Act
+        userService.forgotPassword(request);
+
+        // Assert
+        verify(emailService, times(1)).sendEmail(anyString(), anyString(), anyString());
+    }
+
+    @Test(expected = UserNotFoundException.class)
+    public void forgotPassword_throwsUserNotFoundException_whenUserDoesNotExist() {
+        // Arrange
+        ForgotPasswordRequest request = new ForgotPasswordRequest("nonExistentUser");
+        when(userRepository.findByEmailOrUsername(request.getEmailOrUsername())).thenReturn(null);
+
+        // Act
+        userService.forgotPassword(request);
+    }
+
+    @Test
+    public void resetPassword_resetsPassword_whenTokenIsValid() {
+        // Arrange
+        ResetPasswordRequest request = new ResetPasswordRequest("validToken", "newPassword", "newPassword");
+        User existingUser = new User();
+        Password password = new Password();
+        password.setResetToken("validToken");
+        existingUser.setPassword(password);
+        when(userRepository.findByPassword_ResetToken(request.getToken())).thenReturn(existingUser);
+
+        // Act
+        userService.resetPassword(request);
+
+        // Assert
+        assertNull(existingUser.getPassword().getResetToken());
+        verify(userRepository, times(2)).save(existingUser);
+    }
+
+    @Test(expected = InvalidTokenException.class)
+    public void resetPassword_throwsInvalidTokenException_whenTokenIsInvalid() {
+        // Arrange
+        ResetPasswordRequest request = new ResetPasswordRequest("invalidToken", "newPassword", "newPassword");
+        when(userRepository.findByPassword_ResetToken(request.getToken())).thenReturn(null);
+
+        // Act
+        userService.resetPassword(request);
+    }
 }

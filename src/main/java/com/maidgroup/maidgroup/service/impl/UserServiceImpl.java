@@ -1,13 +1,17 @@
 package com.maidgroup.maidgroup.service.impl;
 
+import com.maidgroup.maidgroup.dao.PasswordRepository;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.User;
 import com.maidgroup.maidgroup.model.userinfo.Age;
 import com.maidgroup.maidgroup.model.userinfo.Gender;
 import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
+import com.maidgroup.maidgroup.service.EmailService;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.service.exceptions.*;
+import com.maidgroup.maidgroup.util.dto.Requests.ForgotPasswordRequest;
+import com.maidgroup.maidgroup.util.dto.Requests.ResetPasswordRequest;
 import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import io.micrometer.common.util.StringUtils;
@@ -16,6 +20,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,20 +42,29 @@ public class UserServiceImpl implements UserService {
     BCryptPasswordEncoder passwordEncoder;
     JWTUtility jwtUtility;
     //private Logger logger = LogManager.getLogger();
+    EmailService emailService;
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, JWTUtility jwtUtility) {
+    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, JWTUtility jwtUtility, EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtility = jwtUtility;
+        this.emailService = emailService;
     }
 
     @Transactional
-    public void deactivateAccount(Long userId) {
+    @Override
+    public void deactivateAccount(Long userId, User requester) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("No user was found."));
-        user.setDeactivationDate(LocalDate.now());
-        userRepository.save(user);
+
+        boolean isAdmin = requester.getRole().equals(Role.ADMIN);
+        if (isAdmin || requester.getUserId().equals(user.getUserId())) {
+            user.setDeactivationDate(LocalDate.now());
+            userRepository.save(user);
+        } else {
+            throw new UnauthorizedException("You are not authorized to deactivate this account.");
+        }
     }
 
     @Override
@@ -93,7 +107,9 @@ public class UserServiceImpl implements UserService {
     @Override
     public User register(User user) {
         String username = user.getUsername();
+        String email = user.getEmail();
         User u = userRepository.findByUsername(username);
+        User e = userRepository.findByEmailOrUsername(email);
 
         if (u != null) {
             throw new RuntimeException("Username is already taken");
@@ -110,6 +126,9 @@ public class UserServiceImpl implements UserService {
         EmailValidator emailValidator = EmailValidator.getInstance();
         if (!emailValidator.isValid(user.getEmail())) {
             throw new RuntimeException("Invalid email address");
+        }
+        if (e != null) {
+            throw new RuntimeException("Email is already taken");
         }
         if (user.getGender() == null) {
             throw new RuntimeException("Must select a gender option");
@@ -349,6 +368,41 @@ public class UserServiceImpl implements UserService {
         } else {
             throw new UserNotFoundException("No user was found.");
         }
+    }
+    @Transactional
+    @Override
+    public void forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
+        User user = userRepository.findByEmailOrUsername(forgotPasswordRequest.getEmailOrUsername());
+        if (user == null) {
+            throw new UserNotFoundException("No user found with this email or username: " + forgotPasswordRequest.getEmailOrUsername());
+        }
+
+        String token = UUID.randomUUID().toString();
+        Password password = user.getPassword();
+        password.setResetToken(token);
+        userRepository.save(user);
+
+        // Here, you should implement the logic to send the email.
+        String resetLink = "https://website.com/resetPassword?token=" + token;
+        String message = "To reset your password, click the following link: " + resetLink;
+        emailService.sendEmail(user.getEmail(), "Password Reset", message);
+    }
+
+    @Transactional
+    @Override
+    public void resetPassword(ResetPasswordRequest resetPasswordRequest) {
+        User user = userRepository.findByPassword_ResetToken(resetPasswordRequest.getToken());
+        if (user == null) {
+            throw new InvalidTokenException("Invalid reset token");
+        }
+
+        String encodedPassword = passwordEncoder.encode(resetPasswordRequest.getNewPassword());
+        user.setPassword(new Password(encodedPassword));
+        userRepository.save(user);
+
+        // Invalidate the token after it has been used
+        user.getPassword().setResetToken(null);
+        userRepository.save(user);
     }
 
     void validatePassword(String password) {

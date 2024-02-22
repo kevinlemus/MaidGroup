@@ -17,5 +17,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("select u from User u where u.deactivationDate < :date")
     List<User> findAllByDeactivationDateBefore(@Param("date") LocalDate date);
+    User findByPassword_ResetToken(String resetToken);
+    @Query("select u from User u where u.email = :emailOrUsername or u.username = :emailOrUsername")
+    User findByEmailOrUsername(@Param("emailOrUsername") String emailOrUsername);
+
 }
 

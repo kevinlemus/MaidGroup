@@ -75,6 +75,7 @@ public class WebSecurityConfig {
                 .requestMatchers(new AntPathRequestMatcher("/error")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/maidgroup/consultation/cancel/**")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/maidgroup/consultation/link/**")).permitAll()
+                .requestMatchers(new AntPathRequestMatcher("/**/deactivate")).authenticated()
                 //.anyRequest().authenticated()
                 .and()
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

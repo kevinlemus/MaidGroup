@@ -8,6 +8,8 @@ import com.maidgroup.maidgroup.model.userinfo.Role;
 import com.maidgroup.maidgroup.security.Password;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.util.dto.LoginCreds;
+import com.maidgroup.maidgroup.util.dto.Requests.ForgotPasswordRequest;
+import com.maidgroup.maidgroup.util.dto.Requests.ResetPasswordRequest;
 import com.maidgroup.maidgroup.util.dto.Requests.UserRequest;
 import com.maidgroup.maidgroup.util.dto.Responses.InvoiceResponse;
 import com.maidgroup.maidgroup.util.dto.Responses.UserResponse;
@@ -75,8 +77,9 @@ public class UserController {
     }
 
     @PostMapping("/{id}/deactivate")
-    public String deactivateAccount(@PathVariable Long id) {
-        userService.deactivateAccount(id);
+    public String deactivateAccount(@PathVariable Long id, Principal principal) {
+        User authUser = userRepository.findByUsername(principal.getName());
+        userService.deactivateAccount(id, authUser);
         return "Your account has been deactivated. It will be deleted after 30 days unless you reactivate it.";
     }
 
@@ -171,5 +174,16 @@ public class UserController {
         return "Your account has been deleted";
     }
 
+    @PostMapping("/forgotPassword")
+    public String forgotPassword(@RequestBody ForgotPasswordRequest forgotPasswordRequest) {
+        userService.forgotPassword(forgotPasswordRequest);
+        return "A password reset link has been sent to your email.";
+    }
+
+    @PostMapping("/resetPassword")
+    public String resetPassword(@RequestBody ResetPasswordRequest resetPasswordRequest) {
+        userService.resetPassword(resetPasswordRequest);
+        return "Your password has been successfully reset";
+    }
 }
 
