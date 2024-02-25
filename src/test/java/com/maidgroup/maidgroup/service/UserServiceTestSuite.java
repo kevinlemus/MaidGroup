@@ -42,8 +42,6 @@ public class UserServiceTestSuite {
     UserRepository userRepository;
     @Mock
     BCryptPasswordEncoder passwordEncoder;
-    @Mock
-    UserService userService;
     // Create a mock instance of the JwtUtility class
     @Mock
     JWTUtility jwtUtility;
@@ -312,15 +310,19 @@ public class UserServiceTestSuite {
         // Arrange
         ForgotPasswordRequest request = new ForgotPasswordRequest("testUser");
         User existingUser = new User();
+        Password password = new Password(); // Create a new Password
+        existingUser.setPassword(password); // Set the Password for the User
         existingUser.setEmail("testUser@example.com");
         when(userRepository.findByEmailOrUsername(request.getEmailOrUsername())).thenReturn(existingUser);
+        when(userRepository.save(any(User.class))).thenReturn(existingUser);
 
         // Act
-        userService.forgotPassword(request);
+        sut.forgotPassword(request);
 
         // Assert
         verify(emailService, times(1)).sendEmail(anyString(), anyString(), anyString());
     }
+
 
     @Test(expected = UserNotFoundException.class)
     public void forgotPassword_throwsUserNotFoundException_whenUserDoesNotExist() {
@@ -329,7 +331,10 @@ public class UserServiceTestSuite {
         when(userRepository.findByEmailOrUsername(request.getEmailOrUsername())).thenReturn(null);
 
         // Act
-        userService.forgotPassword(request);
+        sut.forgotPassword(request);
+
+        // Assert
+        // No need to assert here as the expected exception is already defined in the test annotation
     }
 
     @Test
@@ -341,9 +346,11 @@ public class UserServiceTestSuite {
         password.setResetToken("validToken");
         existingUser.setPassword(password);
         when(userRepository.findByPassword_ResetToken(request.getToken())).thenReturn(existingUser);
+        when(passwordEncoder.encode(request.getNewPassword())).thenReturn("encodedPassword");
+        when(userRepository.save(any(User.class))).thenReturn(existingUser);
 
         // Act
-        userService.resetPassword(request);
+        sut.resetPassword(request);
 
         // Assert
         assertNull(existingUser.getPassword().getResetToken());
@@ -357,6 +364,10 @@ public class UserServiceTestSuite {
         when(userRepository.findByPassword_ResetToken(request.getToken())).thenReturn(null);
 
         // Act
-        userService.resetPassword(request);
+        sut.resetPassword(request);
+
+        // Assert
+        // No need to assert here as the expected exception is already defined in the test annotation
     }
+
 }
