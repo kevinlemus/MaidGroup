@@ -1,6 +1,7 @@
 package com.maidgroup.maidgroup.controller;
 
 import com.maidgroup.maidgroup.dao.InvoiceRepository;
+import com.maidgroup.maidgroup.dao.Secured;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.Invoice;
 import com.maidgroup.maidgroup.model.User;
@@ -128,6 +129,7 @@ public class InvoiceController {
         return invoiceResponse;
     }
 
+    @Secured(isAdmin = true)
     @PutMapping("/{invoiceId}")
     public InvoiceResponse updateInvoice(@PathVariable Long invoiceId, @RequestBody InvoiceRequest invoiceRequest, Principal principal){
         // Check if the user is authenticated

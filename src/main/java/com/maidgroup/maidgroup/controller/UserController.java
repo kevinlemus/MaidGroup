@@ -150,7 +150,7 @@ public class UserController {
     }
 
     @GetMapping("/getAllUsers")
-    //@Secured(isAdmin = true)
+    @Secured(isAdmin = true)
     public @ResponseBody List<UserResponse> getAllUsers(Principal principal, @RequestParam(value = "sort", required = false) String sort, @RequestParam(value = "firstName", required = false) String firstName, @RequestParam(value = "lastName", required = false) String lastName, @RequestParam(value = "gender", required = false) Gender gender, @RequestParam(value = "email", required = false) String email){
         User authUser = userRepository.findByUsername(principal.getName());
         List<User> allUsers = userService.getAllUsers(authUser, sort, firstName, lastName, gender, email);
