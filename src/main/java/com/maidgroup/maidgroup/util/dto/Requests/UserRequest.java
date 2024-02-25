@@ -23,28 +23,17 @@ import java.time.LocalDate;
 public class UserRequest {
 
     private Long userId;
-    @NotNull
-    @NotBlank
     private String username;
     private String password;
     private String rawPassword;
     private String confirmPassword;
-    @NotNull
-    @NotBlank
     private String firstName;
-    @NotNull
-    @NotBlank
     private String lastName;
     @Email
-    @NotNull
-    @NotBlank
     private String email;
-    @NotNull
     private Gender gender;
-    @NotNull
     private LocalDate dateOfBirth;
     private Role role;
-    @NotNull
     @Min(value = 0)
     private int age;
     private LocalDate deactivationDate;

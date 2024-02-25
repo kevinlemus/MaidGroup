@@ -1,6 +1,7 @@
 package com.maidgroup.maidgroup.controller;
 
 import com.maidgroup.maidgroup.dao.ConsultationRepository;
+import com.maidgroup.maidgroup.dao.Secured;
 import com.maidgroup.maidgroup.dao.UserRepository;
 import com.maidgroup.maidgroup.model.Consultation;
 import com.maidgroup.maidgroup.model.User;
@@ -9,6 +10,7 @@ import com.maidgroup.maidgroup.model.consultationinfo.PreferredContact;
 import com.maidgroup.maidgroup.service.ConsultationService;
 import com.maidgroup.maidgroup.service.UserService;
 import com.maidgroup.maidgroup.util.dto.Responses.ConsultResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,6 +56,7 @@ public class ConsultationController {
         return consultResponse;
     }
 
+    @Secured
     @GetMapping("/getConsultations")
     public @ResponseBody List<ConsultResponse> getConsults(Principal principal, @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date, @RequestParam(value = "status", required = false) ConsultationStatus status, @RequestParam(value = "preferredContact", required = false) PreferredContact preferredContact, @RequestParam(value = "name", required = false) String name, @RequestParam(value = "email", required = false) String email, @RequestParam(value = "sort", required = false) String sort) {
         User authUser = userRepository.findByUsername(principal.getName());
@@ -61,6 +64,7 @@ public class ConsultationController {
         return consultations.stream().map(ConsultResponse::new).collect(Collectors.toList());
     }
 
+    @Secured
     @DeleteMapping("/deleteConsultations")
     public String deleteConsultations(Principal principal, @RequestParam(value = "ids") List<Long> ids) {
         User authUser = userRepository.findByUsername(principal.getName());
@@ -68,6 +72,7 @@ public class ConsultationController {
         return "The selected consultations have been deleted.";
     }
 
+    @Secured
     @DeleteMapping("/{id}")
     public String delete(@PathVariable("id") Long id, Principal principal) {
         User authUser = userRepository.findByUsername(principal.getName());
