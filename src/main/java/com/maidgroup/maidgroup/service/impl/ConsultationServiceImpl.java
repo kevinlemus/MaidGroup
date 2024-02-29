@@ -205,7 +205,7 @@ public class ConsultationServiceImpl implements ConsultationService {
                 throw new UnauthorizedException("You are not authorized to delete consultations.");
             }
         } else {
-            throw new ConsultationNotFoundException("No consultation with the id "+ consultId +"exists.");
+            throw new ConsultationNotFoundException("No consultation with the ID "+ consultId +" exists.");
         }
     }
 
@@ -236,7 +236,7 @@ public class ConsultationServiceImpl implements ConsultationService {
     public void cancelConsultation(Long consultId) {
         Optional<Consultation> optionalConsultation = consultRepository.findById(consultId);
         if(optionalConsultation.isEmpty()){
-            throw new ConsultationNotFoundException("There is no consultation associated with this id.");
+            throw new ConsultationNotFoundException("There is no consultation associated with this ID.");
         }
         Consultation consultation = optionalConsultation.get();
         consultation.setStatus(ConsultationStatus.CANCELLED);

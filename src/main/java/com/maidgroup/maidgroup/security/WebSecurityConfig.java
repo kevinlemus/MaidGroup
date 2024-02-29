@@ -25,7 +25,6 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
 
-    String USER_PRINCIPAL_SERVICE = "(com.maidgroup.maidgroup.security.CustomUserPrincipal)";
     CustomUserDetailsService customUserDetailsService;
     JWTUtility jwtUtility;
     JWTAuthenticationFilter jwtAuthenticationFilter;
@@ -71,25 +70,24 @@ public class WebSecurityConfig {
         http.csrf().disable()
                 .authorizeRequests()
                 .requestMatchers(HttpMethod.POST, "/user/login", "/user/registerUser", "/user/logout", "/user/forgotPassword", "/user/resetPassword", "/consultation/create").permitAll()
-                .requestMatchers(HttpMethod.GET, "/{id}").access("hasAuthority('ADMIN') or (isAuthenticated() and #id == " + USER_PRINCIPAL_SERVICE + ".fromAuthentication(authentication).getUserId())")
-                .requestMatchers(HttpMethod.GET, "/getConsultations").hasAuthority("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/deleteConsultations", "/{id}").access("hasAuthority('ADMIN') or (isAuthenticated() and #id == " + USER_PRINCIPAL_SERVICE + ".fromAuthentication(authentication).getUserId())")
+                .requestMatchers(HttpMethod.GET, "/consultation/{id}", "/invoice/{id}").access("hasAuthority('ADMIN') or (isAuthenticated() and #id.toString().equals(authentication.principal.userId.toString()))")
+                .requestMatchers(HttpMethod.GET, "/consultation/getConsultations").hasAuthority("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/consultation/deleteConsultations").hasAuthority("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/consultation/cancel/{id}").permitAll()
                 .requestMatchers(HttpMethod.GET, "/consultation/link/{uniqueLink}").permitAll()
-                .requestMatchers(HttpMethod.POST, "/user/{id}/deactivate").access("hasAuthority('ADMIN') or (isAuthenticated() and #id == " + USER_PRINCIPAL_SERVICE + ".fromAuthentication(authentication).getUserId())")
-                .requestMatchers(HttpMethod.PUT, "/user/{userId}").access("hasAuthority('ADMIN') or (isAuthenticated() and #userId == " + USER_PRINCIPAL_SERVICE + ".fromAuthentication(authentication).getUserId())")
+                .requestMatchers(HttpMethod.POST, "/user/{userId}/deactivate").access("hasAuthority('ADMIN') or (isAuthenticated() and #userId.toString().equals(authentication.principal.userId.toString()))")
+                .requestMatchers(HttpMethod.PUT, "/user/{userId}").access("hasAuthority('ADMIN') or (isAuthenticated() and #userId.toString().equals(authentication.principal.userId.toString()))")
                 .requestMatchers(HttpMethod.GET, "/user/getAllUsers").hasAuthority("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/user/{username}").access("hasAuthority('ADMIN') or (isAuthenticated() and #username == " + USER_PRINCIPAL_SERVICE + ".fromAuthentication(authentication).getUsername())")
-                .requestMatchers(HttpMethod.DELETE, "/user/{userId}").access("hasAuthority('ADMIN') or (isAuthenticated() and #userId == " + USER_PRINCIPAL_SERVICE + ".fromAuthentication(authentication).getUserId())")
-                .requestMatchers(HttpMethod.POST, "/create").hasAuthority("ADMIN")
-                .requestMatchers(HttpMethod.POST, "/webhook").permitAll()
-                .requestMatchers(HttpMethod.GET, "/getInvoices").access("hasAuthority('ADMIN') or isAuthenticated()")
-                .requestMatchers(HttpMethod.GET, "/{id}").access("hasAuthority('ADMIN') or (isAuthenticated() and #id == " + USER_PRINCIPAL_SERVICE + ".fromAuthentication(authentication).getUserId())")
-                .requestMatchers(HttpMethod.GET, "/orderId/{orderId}").access("hasAuthority('ADMIN') or (isAuthenticated() and #orderId == " + USER_PRINCIPAL_SERVICE + ".fromAuthentication(authentication).getOrderId())")
-                .requestMatchers(HttpMethod.PUT, "/{invoiceId}").access("hasAuthority('ADMIN') and @securityService.isNotPaid(#invoiceId)")
-                .requestMatchers(HttpMethod.POST, "/sendLink/{orderId}").hasAuthority("ADMIN")
-                .requestMatchers(HttpMethod.POST, "/sendInvoice/{orderId}").access("hasAuthority('ADMIN') or (isAuthenticated() and #orderId == " + USER_PRINCIPAL_SERVICE + ".fromAuthentication(authentication).getOrderId())")
-                .requestMatchers(new AntPathRequestMatcher("/invoices/webhook")).permitAll()
+                .requestMatchers(HttpMethod.GET, "/user/{username}").access("hasAuthority('ADMIN') or (isAuthenticated() and #username.equals(authentication.principal.username))")
+                .requestMatchers(HttpMethod.DELETE, "/user/{userId}").access("hasAuthority('ADMIN') or (isAuthenticated() and #userId.toString().equals(authentication.principal.userId.toString()))")
+                .requestMatchers(HttpMethod.POST, "/consultation/create", "/user/create", "/invoice/create").permitAll()
+                .requestMatchers(HttpMethod.POST, "/invoice/create").hasAuthority("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/invoices/webhook").permitAll()
+                .requestMatchers(HttpMethod.GET, "/invoices/getInvoices").access("hasAuthority('ADMIN') or isAuthenticated()")
+                .requestMatchers(HttpMethod.GET, "/invoice/orderId/{orderId}").access("hasAuthority('ADMIN') or (isAuthenticated() and #orderId == authentication.principal.orderId)")
+                .requestMatchers(HttpMethod.PUT, "/invoice/{invoiceId}").access("hasAuthority('ADMIN') and @securityService.isNotPaid(#invoiceId)")
+                .requestMatchers(HttpMethod.POST, "/invoice/sendLink/{orderId}").hasAuthority("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/invoice/sendInvoice/{orderId}").access("hasAuthority('ADMIN') or (isAuthenticated() and #orderId == authentication.principal.orderId)")
                 .requestMatchers(new AntPathRequestMatcher("/maidgroup/v3/**"), new AntPathRequestMatcher("/maidgroup/swagger-ui/**")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/swagger-ui/**")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/v3/api-docs/swagger-config")).permitAll()
@@ -100,6 +98,7 @@ public class WebSecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
+
 
 
 

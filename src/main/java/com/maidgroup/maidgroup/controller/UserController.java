@@ -76,12 +76,13 @@ public class UserController {
         return userResponse;
     }
 
-    @PostMapping("/{id}/deactivate")
-    public String deactivateAccount(@PathVariable Long id, Principal principal) {
+    @PostMapping("/{userId}/deactivate")
+    public String deactivateAccount(@PathVariable("userId") Long id, Principal principal) {
         User authUser = userRepository.findByUsername(principal.getName());
         userService.deactivateAccount(id, authUser);
         return "Your account has been deactivated. It will be deleted after 30 days unless you reactivate it.";
     }
+
 
     @PostMapping("/login")
     public UserResponse login(@RequestBody LoginCreds loginCreds, HttpServletResponse response){

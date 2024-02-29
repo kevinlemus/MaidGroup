@@ -218,7 +218,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 throw new UnauthorizedException("You are not authorized to delete consultations.");
             }
         } else {
-            throw new InvoiceNotFoundException("No invoice with the id " + invoiceId + "exists.");
+            throw new InvoiceNotFoundException("No invoice with the ID " + invoiceId + " exists.");
         }
     }
 
@@ -397,7 +397,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     public void sendPaymentLink(Invoice invoice, User user) {
         if (!user.getRole().equals(Role.ADMIN)) {
-            throw new UnauthorizedException("You are not authorized to update this invoice.");
+            throw new UnauthorizedException("You are not authorized to access this endpoint.");
         }
         if (invoice.getStatus().equals(PaymentStatus.PAID)){
             throw new InvoiceAlreadyPaidException("Invoice " + invoice.getOrderId() + " has already been paid. Cannot send payment link.");
@@ -437,7 +437,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Transactional
     public void sendInvoice(String orderId, String email, User user) {
         if (!user.getRole().equals(Role.ADMIN)) {
-            throw new UnauthorizedException("You are not authorized to update this invoice.");
+            throw new UnauthorizedException("You are not authorized to access this endpoint.");
         }
 
         Invoice invoice = invoiceRepository.findByOrderId(orderId);
