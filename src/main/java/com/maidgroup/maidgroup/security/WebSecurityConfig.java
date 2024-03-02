@@ -1,24 +1,38 @@
 package com.maidgroup.maidgroup.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maidgroup.maidgroup.service.CustomUserDetailsService;
+import com.maidgroup.maidgroup.service.GoogleOAuth2UserService;
 import com.maidgroup.maidgroup.util.square.mock.SquareClientWrapper;
 import com.maidgroup.maidgroup.util.square.mock.SquareClientWrapperImpl;
 import com.maidgroup.maidgroup.util.tokens.JWTAuthenticationFilter;
 import com.maidgroup.maidgroup.util.tokens.JWTUtility;
 import com.squareup.square.Environment;
 import com.squareup.square.SquareClient;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.io.IOException;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -28,14 +42,16 @@ public class WebSecurityConfig {
     CustomUserDetailsService customUserDetailsService;
     JWTUtility jwtUtility;
     JWTAuthenticationFilter jwtAuthenticationFilter;
+    GoogleOAuth2UserService googleOAuth2UserService;
     @Value("${square.access-token}")
     private String squareAccessToken;
 
     @Autowired
-    public WebSecurityConfig(CustomUserDetailsService customUserDetailsService, JWTUtility jwtUtility, JWTAuthenticationFilter jwtAuthenticationFilter) {
+    public WebSecurityConfig(CustomUserDetailsService customUserDetailsService, JWTUtility jwtUtility, JWTAuthenticationFilter jwtAuthenticationFilter, GoogleOAuth2UserService googleOAuth2UserService) {
         this.customUserDetailsService = customUserDetailsService;
         this.jwtUtility = jwtUtility;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.googleOAuth2UserService = googleOAuth2UserService;
     }
 
     @Bean
@@ -99,13 +115,25 @@ public class WebSecurityConfig {
         return http.build();
     }
 
-
-
-
-
-
-
-
+    protected void configure(HttpSecurity http) throws Exception {
+        http
+                .oauth2Login()
+                .userInfoEndpoint()
+                .userService(googleOAuth2UserService)
+                .and()
+                .defaultSuccessUrl("/home", true)
+                .failureHandler(new SimpleUrlAuthenticationFailureHandler() {
+                    @Override
+                    public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
+                        super.onAuthenticationFailure(request, response, exception);
+                        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                        Map<String, Object> data = new HashMap<>();
+                        data.put("timestamp", Calendar.getInstance().getTime());
+                        data.put("exception", exception.getMessage());
+                        response.getOutputStream().println(new ObjectMapper().writeValueAsString(data));
+                    }
+                });
+    }
 
 
 
