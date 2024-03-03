@@ -2,6 +2,7 @@ package com.maidgroup.maidgroup.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maidgroup.maidgroup.service.CustomUserDetailsService;
+import com.maidgroup.maidgroup.service.FacebookOAuth2UserService;
 import com.maidgroup.maidgroup.service.GoogleOAuth2UserService;
 import com.maidgroup.maidgroup.util.square.mock.SquareClientWrapper;
 import com.maidgroup.maidgroup.util.square.mock.SquareClientWrapperImpl;
@@ -43,15 +44,17 @@ public class WebSecurityConfig {
     JWTUtility jwtUtility;
     JWTAuthenticationFilter jwtAuthenticationFilter;
     GoogleOAuth2UserService googleOAuth2UserService;
+    FacebookOAuth2UserService facebookOAuth2UserService;
     @Value("${square.access-token}")
     private String squareAccessToken;
 
     @Autowired
-    public WebSecurityConfig(CustomUserDetailsService customUserDetailsService, JWTUtility jwtUtility, JWTAuthenticationFilter jwtAuthenticationFilter, GoogleOAuth2UserService googleOAuth2UserService) {
+    public WebSecurityConfig(CustomUserDetailsService customUserDetailsService, JWTUtility jwtUtility, JWTAuthenticationFilter jwtAuthenticationFilter, GoogleOAuth2UserService googleOAuth2UserService, FacebookOAuth2UserService facebookOAuth2UserService) {
         this.customUserDetailsService = customUserDetailsService;
         this.jwtUtility = jwtUtility;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.googleOAuth2UserService = googleOAuth2UserService;
+        this.facebookOAuth2UserService = facebookOAuth2UserService;
     }
 
     @Bean
@@ -119,7 +122,9 @@ public class WebSecurityConfig {
         http
                 .oauth2Login()
                 .userInfoEndpoint()
-                .userService(googleOAuth2UserService)
+                .userService(googleOAuth2UserService)  // For Google
+                .userService(facebookOAuth2UserService)  // For Facebook
+                //.userService(appleOAuth2UserService)  // For Apple
                 .and()
                 .defaultSuccessUrl("/home", true)
                 .failureHandler(new SimpleUrlAuthenticationFailureHandler() {
@@ -134,7 +139,5 @@ public class WebSecurityConfig {
                     }
                 });
     }
-
-
 
 }

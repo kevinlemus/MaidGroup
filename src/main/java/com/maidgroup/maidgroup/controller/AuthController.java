@@ -25,8 +25,8 @@ public class AuthController {
     @GetMapping("/authSuccess")
     public String handleAuthentication(Model model, OAuth2AuthenticationToken authentication) {
         OAuth2User oAuth2User = authentication.getPrincipal();
-        String username = oAuth2User.getAttribute("name");
-        User user = userRepository.findByUsername(username);
+        String email = oAuth2User.getAttribute("email");
+        User user = userRepository.findByEmail(email);
         if (user != null) {
             model.addAttribute("user", user);
         } else {
@@ -35,4 +35,5 @@ public class AuthController {
         }
         return "authSuccess";
     }
+
 }

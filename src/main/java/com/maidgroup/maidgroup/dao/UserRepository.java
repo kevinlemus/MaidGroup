@@ -20,6 +20,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     User findByPassword_ResetToken(String resetToken);
     @Query("select u from User u where u.email = :emailOrUsername or u.username = :emailOrUsername")
     User findByEmailOrUsername(@Param("emailOrUsername") String emailOrUsername);
-
+    User findByEmail(String email);
 }
 

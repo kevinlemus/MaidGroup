@@ -23,12 +23,12 @@ import java.util.Map;
 @Service
 @NoArgsConstructor
 @Log4j2
-public class GoogleOAuth2UserService extends DefaultOAuth2UserService {
+public class FacebookOAuth2UserService extends DefaultOAuth2UserService {
 
     private UserRepository userRepository;
 
     @Autowired
-    public GoogleOAuth2UserService(UserRepository userRepository) {
+    public FacebookOAuth2UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
@@ -44,7 +44,7 @@ public class GoogleOAuth2UserService extends DefaultOAuth2UserService {
             return new DefaultOAuth2User(Collections.singleton(new SimpleGrantedAuthority("USER")), attributes, "name");
         }
         String provider = userRequest.getClientRegistration().getRegistrationId();
-        if (provider.equals("google")) {
+        if (provider.equals("facebook")) {
             Object emailObject = userRequest.getAdditionalParameters().get("email");
             if (emailObject == null) {
                 throw new OAuth2AuthenticationException(new OAuth2Error(ERROR_CODE_USER_NOT_FOUND, ERROR_DESCRIPTION_USER_NOT_FOUND, ""));
@@ -65,14 +65,6 @@ public class GoogleOAuth2UserService extends DefaultOAuth2UserService {
                 if (nameObject != null) {
                     user.setUsername(nameObject.toString());
                 }
-                Object givenNameObject = userRequest.getAdditionalParameters().get("given_name");
-                Object familyNameObject = userRequest.getAdditionalParameters().get("family_name");
-                if (givenNameObject != null) {
-                    user.setFirstName(givenNameObject.toString());
-                }
-                if (familyNameObject != null) {
-                    user.setLastName(familyNameObject.toString());
-                }
                 // Set other fields as necessary
                 userRepository.save(user);
             } else if (user == null) {
@@ -81,4 +73,5 @@ public class GoogleOAuth2UserService extends DefaultOAuth2UserService {
         }
         return super.loadUser(userRequest);
     }
+
 }
