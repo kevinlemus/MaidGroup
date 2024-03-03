@@ -42,7 +42,8 @@ public class JWTUtility {
         );
     }
 
-    public String createToken(User user) throws IOException {
+    public String createToken(User user, boolean rememberMe) throws IOException {
+        long expirationTime = rememberMe ? jwtConfig.getLongExpirationTime() : jwtConfig.getShortExpirationTime();
         JwtBuilder tokenBuilder = Jwts.builder()
                 .setId(String.valueOf(user.getUserId()))
                 .setSubject(user.getUsername())
@@ -52,10 +53,11 @@ public class JWTUtility {
                 .claim("email", user.getEmail())
                 .claim("role", user.getRole())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis()+ jwtConfig.getExpirationTime()))//seconds*minutes*1000*hours
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(Keys.hmacShaKeyFor(lazySaltyBytes), SignatureAlgorithm.HS256);
         return tokenBuilder.compact();
     }
+
 
 
     public boolean isTokenValid(String token){

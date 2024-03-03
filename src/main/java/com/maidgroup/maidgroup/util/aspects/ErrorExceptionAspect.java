@@ -115,4 +115,11 @@ public class ErrorExceptionAspect {
     public String handleInvoiceAlreadyPaidException(InvoiceAlreadyPaidException e) {
         return e.getMessage();
     }
+
+    @ExceptionHandler({InvalidPasswordException.class})
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public String handleInvalidPasswordException(InvalidPasswordException e) {
+        return e.getMessage();
+    }
+
 }

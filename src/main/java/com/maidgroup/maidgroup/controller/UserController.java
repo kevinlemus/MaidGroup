@@ -88,7 +88,7 @@ public class UserController {
     public UserResponse login(@RequestBody LoginCreds loginCreds, HttpServletResponse response){
         User authUser = userService.login(loginCreds.getUsername(), loginCreds.getPassword());
         UserResponse userResponse = new UserResponse(authUser);
-        String token = jwtUtility.createToken(authUser);
+        String token = jwtUtility.createToken(authUser, loginCreds.isRememberMe());
         response.setHeader("Authorization", token);
         Cookie cookie = new Cookie("jwt", token);
         cookie.setHttpOnly(true);
@@ -97,6 +97,7 @@ public class UserController {
 
         return userResponse;
     }
+
     @PostMapping("/logout")
     public String logout(@RequestBody UserRequest logoutRequest, HttpServletRequest request, HttpServletResponse response){
         String jwt = logoutRequest.getJwt();

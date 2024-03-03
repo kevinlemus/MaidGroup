@@ -12,6 +12,6 @@ public class LoginCreds {
 
     private String username;
     private String password;
-
+    private boolean rememberMe;
 
 }

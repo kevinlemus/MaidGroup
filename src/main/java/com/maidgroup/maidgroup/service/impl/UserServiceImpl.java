@@ -396,14 +396,33 @@ public class UserServiceImpl implements UserService {
             throw new InvalidTokenException("Invalid reset token");
         }
 
-        String encodedPassword = passwordEncoder.encode(resetPasswordRequest.getNewPassword());
+        // Check if the new password is the same as the current password
+        String newPassword = resetPasswordRequest.getNewPassword();
+        if (passwordEncoder.matches(newPassword, user.getPassword().getHashedPassword())) {
+            throw new InvalidPasswordException("Password has already been used.");
+        }
+
+        // Check if the new password matches any of the user's previous passwords
+        if (user.getPreviousPasswords().stream().anyMatch(p -> passwordEncoder.matches(newPassword, p.getHashedPassword()))) {
+            throw new InvalidPasswordException("Password has already been used.");
+        }
+
+        // Add the old password to the previousPasswords list
+        Password oldPassword = user.getPassword();
+        oldPassword.setDateLastUsed(LocalDate.now());
+        user.getPreviousPasswords().add(oldPassword);
+
+        // Set the new password
+        String encodedPassword = passwordEncoder.encode(newPassword);
         user.setPassword(new Password(encodedPassword));
-        userRepository.save(user);
 
         // Invalidate the token after it has been used
         user.getPassword().setResetToken(null);
+
         userRepository.save(user);
     }
+
+
 
     void validatePassword(String password) {
         String regex = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&+=])(?=\\S+$).{8,}$";
